@@ -137,6 +137,7 @@ function LoginForm() {
     }
 
     setError('');
+    setSuccess('');
     setIsLoading(true);
     try {
       const supabase = createClient();
@@ -147,7 +148,6 @@ function LoginForm() {
       });
 
       if (verifyError) {
-        setSuccess(''); // Clear success if verify fails
         setError(getVietnameseError(verifyError.message));
         setOtp(['', '', '', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
