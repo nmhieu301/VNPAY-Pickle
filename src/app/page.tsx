@@ -26,7 +26,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAppStore();
+  const { isAuthenticated, initAuth } = useAppStore();
   const [email, setEmail] = useState('');
   const [step, setStep] = useState<Step>('email');
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -40,8 +40,16 @@ function LoginForm() {
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '', '', '']);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Auth listener
   useEffect(() => {
-    if (isAuthenticated) router.push('/dashboard');
+    const unsubscribe = initAuth();
+    return () => unsubscribe();
+  }, [initAuth]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
   }, [isAuthenticated, router]);
 
   // Show auth error from callback redirect
@@ -139,12 +147,14 @@ function LoginForm() {
       });
 
       if (verifyError) {
+        setSuccess(''); // Clear success if verify fails
         setError(getVietnameseError(verifyError.message));
         setOtp(['', '', '', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
         return;
       }
 
+      setError(''); // Clear error on success
       // Success — onAuthStateChange in store will handle the rest
       setSuccess('Đăng nhập thành công! Đang chuyển hướng...');
     } catch {
@@ -158,6 +168,7 @@ function LoginForm() {
   const handleResend = async () => {
     if (cooldown > 0) return;
     setError('');
+    setSuccess('');
     setIsLoading(true);
     try {
       const supabase = createClient();
