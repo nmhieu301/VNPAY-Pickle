@@ -20,6 +20,7 @@ export function Header() {
   const pathname = usePathname();
   const currentUser = useAppStore(s => s.currentUser);
   const logout = useAppStore(s => s.logout);
+  const isAdmin = useAppStore(s => s.isAdmin());
   const myPendingInvitations = useGroupStore(s => s.myPendingInvitations);
   const [isDark, setIsDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -78,6 +79,18 @@ export function Header() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                pathname.startsWith('/admin')
+                  ? 'bg-purple-600 text-white'
+                  : 'text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+              }`}
+            >
+              Quản trị
+            </Link>
+          )}
         </nav>
 
         {/* Spacer */}
@@ -129,6 +142,11 @@ export function Header() {
                     <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--muted)] transition-colors">
                       👤 Hồ sơ
                     </Link>
+                    {isAdmin && (
+                      <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-purple-600 font-medium hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
+                        🛡️ Quản trị viên
+                      </Link>
+                    )}
                     <button onClick={() => { toggleTheme(); setMenuOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-[var(--muted)] transition-colors w-full text-left">
                       {isDark ? '☀️ Sáng' : '🌙 Tối'}
                     </button>

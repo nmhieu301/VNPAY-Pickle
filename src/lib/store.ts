@@ -23,6 +23,8 @@ import {
   leaveSessionDB,
   toggleCheckInDB,
   createVenueDB,
+  updatePlayerDB,
+  deleteSessionDB,
 } from '@/lib/supabase/api';
 
 // ─── Store Interface ───
@@ -34,6 +36,11 @@ interface AppStore {
   initAuth: () => (() => void);
   loginWithEmail: (email: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  isAdmin: () => boolean;
+
+  // Admin Actions
+  adminUpdatePlayer: (playerId: string, updates: Partial<Player>) => Promise<boolean>;
+  adminDeleteSession: (sessionId: string) => Promise<boolean>;
 
   // Data
   players: Player[];
@@ -132,6 +139,29 @@ export const useAppStore = create<AppStore>()(
           authEmail: null,
           isInitialized: false,
         });
+      },
+      
+      isAdmin: () => get().currentUser?.role === 'admin',
+
+      adminUpdatePlayer: async (playerId, updates) => {
+        const ok = await updatePlayerDB(playerId, updates);
+        if (ok) {
+          set(state => ({
+            players: state.players.map(p => p.id === playerId ? { ...p, ...updates } : p),
+            currentUser: state.currentUser?.id === playerId ? { ...state.currentUser, ...updates } : state.currentUser,
+          }));
+        }
+        return ok;
+      },
+
+      adminDeleteSession: async (sessionId) => {
+        const ok = await deleteSessionDB(sessionId);
+        if (ok) {
+          set(state => ({
+            sessions: state.sessions.filter(s => s.id !== sessionId),
+          }));
+        }
+        return ok;
       },
 
       // ─── Data ───

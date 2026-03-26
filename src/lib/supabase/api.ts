@@ -130,6 +130,16 @@ export async function fetchPlayers(): Promise<Player[]> {
   return (data || []).map(mapPlayer);
 }
 
+export async function fetchPlayersAdmin(): Promise<Player[]> {
+  const { data, error } = await supabase
+    .from('players')
+    .select('*')
+    .order('joined_at', { ascending: false });
+
+  if (error) { console.error('fetchPlayersAdmin error:', error); return []; }
+  return (data || []).map(mapPlayer);
+}
+
 export async function fetchPlayerByEmail(email: string): Promise<Player | null> {
   const { data, error } = await supabase
     .from('players')
@@ -329,4 +339,34 @@ export async function createVenueDB(venueData: {
 
   if (error) { console.error('createVenue error:', error); return null; }
   return mapVenue(data);
+}
+
+export async function updatePlayerDB(playerId: string, updates: Partial<Player>): Promise<boolean> {
+  const dbUpdates: any = {};
+  if (updates.full_name !== undefined) dbUpdates.full_name = updates.full_name;
+  if (updates.nickname !== undefined) dbUpdates.nickname = updates.nickname;
+  if (updates.elo_rating !== undefined) dbUpdates.elo_rating = updates.elo_rating;
+  if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+  if (updates.role !== undefined) dbUpdates.role = updates.role;
+
+  const { error } = await supabase
+    .from('players')
+    .update(dbUpdates)
+    .eq('id', playerId);
+
+  if (error) { console.error('updatePlayerDB error:', error); return false; }
+  return true;
+}
+
+export async function deleteSessionDB(sessionId: string): Promise<boolean> {
+  // Delete session_players first (handled by cascade usually, but being safe)
+  await supabase.from('session_players').delete().eq('session_id', sessionId);
+  
+  const { error } = await supabase
+    .from('sessions')
+    .delete()
+    .eq('id', sessionId);
+
+  if (error) { console.error('deleteSessionDB error:', error); return false; }
+  return true;
 }
