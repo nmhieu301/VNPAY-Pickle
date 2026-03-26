@@ -132,12 +132,16 @@ async function removeWhiteBg(input, output) {
 }
 
 async function main() {
-  const srcLogo = path.resolve('C:/Users/hieunm2/Pictures/vnp pick.png');
-  const publicDir = path.resolve('D:/GG Antigravity/Project/Pickle/public');
+  const publicDir = path.resolve('public');
+  const logos = ['logo.png', 'vnpay-logo.png'];
+  
+  for (const logo of logos) {
+    const logoPath = path.join(publicDir, logo);
+    console.log(`🧹 Processing ${logo}...`);
+    await removeWhiteBg(logoPath, logoPath);
+  }
   
   const mainLogo = path.join(publicDir, 'logo.png');
-  await removeWhiteBg(srcLogo, mainLogo);
-  
   const transparent = await sharp(mainLogo).toBuffer();
   
   await sharp(transparent)

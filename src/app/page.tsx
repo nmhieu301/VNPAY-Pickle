@@ -36,8 +36,8 @@ function LoginForm() {
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // OTP state — 6 separate digits
-  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  // OTP state — 8 separate digits
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '', '', '']);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -111,7 +111,7 @@ function LoginForm() {
       }
 
       setStep('otp');
-      setSuccess('Mã xác thực 6 số đã được gửi đến email của bạn');
+      setSuccess('Mã xác thực đã được gửi đến email của bạn');
       startCooldown(60);
     } catch {
       setError('Lỗi kết nối. Vui lòng thử lại.');
@@ -123,8 +123,8 @@ function LoginForm() {
   // ─── Verify OTP ───
   const handleVerifyOtp = async (otpCode?: string) => {
     const code = otpCode || otp.join('');
-    if (code.length !== 6) {
-      setError('Vui lòng nhập đủ 6 số');
+    if (code.length !== 8) {
+      setError('Vui lòng nhập đủ 8 số');
       return;
     }
 
@@ -140,7 +140,7 @@ function LoginForm() {
 
       if (verifyError) {
         setError(getVietnameseError(verifyError.message));
-        setOtp(['', '', '', '', '', '']);
+        setOtp(['', '', '', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
         return;
       }
@@ -172,7 +172,7 @@ function LoginForm() {
         return;
       }
       setSuccess('Đã gửi lại mã xác thực mới');
-      setOtp(['', '', '', '', '', '']);
+      setOtp(['', '', '', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
       startCooldown(60);
     } catch {
@@ -193,14 +193,14 @@ function LoginForm() {
     setError('');
 
     // Auto-focus next input
-    if (value && index < 5) {
+    if (value && index < 7) {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // Auto-submit when all 6 digits filled
-    if (value && index === 5) {
+    // Auto-submit when all 8 digits filled
+    if (value && index === 7) {
       const fullCode = newOtp.join('');
-      if (fullCode.length === 6) {
+      if (fullCode.length === 8) {
         handleVerifyOtp(fullCode);
       }
     }
@@ -217,7 +217,7 @@ function LoginForm() {
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 8);
     if (pastedData.length === 0) return;
 
     const newOtp = [...otp];
@@ -228,10 +228,10 @@ function LoginForm() {
 
     // Focus the next empty input or last one
     const nextEmpty = newOtp.findIndex(v => !v);
-    inputRefs.current[nextEmpty === -1 ? 5 : nextEmpty]?.focus();
+    inputRefs.current[nextEmpty === -1 ? 7 : nextEmpty]?.focus();
 
     // Auto-submit if pasted full code
-    if (pastedData.length === 6) {
+    if (pastedData.length === 8) {
       handleVerifyOtp(pastedData);
     }
   };
@@ -420,7 +420,7 @@ function LoginForm() {
                 <div className="card p-6 md:p-8">
                   <h2 className="text-xl font-bold mb-1 text-center">🔐 Nhập mã xác thực</h2>
                   <p className="text-sm text-[var(--muted-fg)] mb-6 text-center">
-                    Mã 6 số đã gửi đến <strong className="text-[var(--primary)]">{email}</strong>
+                    Mã xác thực đã gửi đến <strong className="text-[var(--primary)]">{email}</strong>
                   </p>
 
                   {error && (
@@ -435,7 +435,7 @@ function LoginForm() {
                     </div>
                   )}
 
-                  {/* OTP 6-digit inputs */}
+                  {/* OTP 8-digit inputs */}
                   <div className="flex justify-center gap-2 mb-6" onPaste={handleOtpPaste}>
                     {otp.map((digit, index) => (
                       <input
@@ -448,7 +448,7 @@ function LoginForm() {
                         onChange={e => handleOtpChange(index, e.target.value)}
                         onKeyDown={e => handleOtpKeyDown(index, e)}
                         autoFocus={index === 0}
-                        className="w-12 h-14 text-center text-2xl font-bold rounded-xl
+                        className="w-10 h-12 text-center text-xl font-bold rounded-lg
                                    border-2 border-[var(--border-color)] bg-[var(--surface)]
                                    text-[var(--fg)] focus:border-[var(--primary)]
                                    focus:ring-2 focus:ring-[var(--primary)]/20
@@ -461,7 +461,7 @@ function LoginForm() {
                   <button
                     type="button"
                     onClick={() => handleVerifyOtp()}
-                    disabled={otp.join('').length !== 6 || isLoading}
+                    disabled={otp.join('').length !== 8 || isLoading}
                     className="btn btn-gradient w-full btn-lg mb-4"
                   >
                     {isLoading ? (
@@ -486,7 +486,7 @@ function LoginForm() {
                   <div className="flex items-center justify-between pt-4 border-t border-[var(--border-color)]">
                     <button
                       type="button"
-                      onClick={() => { setStep('email'); setError(''); setSuccess(''); setOtp(['', '', '', '', '', '']); }}
+                      onClick={() => { setStep('email'); setError(''); setSuccess(''); setOtp(['', '', '', '', '', '', '', '']); }}
                       className="text-sm text-[var(--primary)] hover:underline"
                     >
                       ← Đổi email
