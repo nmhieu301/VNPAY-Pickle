@@ -46,7 +46,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <img
-          src="/logo.png"
+          src="/logo-128.png"
           alt="VNPAY Pickle"
           className="w-24 h-24 object-contain animate-pulse"
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0, 0, 0, 0.15))' }}
@@ -66,7 +66,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <img
-          src="/logo.png"
+          src="/logo-128.png"
           alt="VNPAY Pickle"
           className="w-24 h-24 object-contain animate-pulse"
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0, 0, 0, 0.15))' }}
