@@ -53,7 +53,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
         {/* Logo */}
         <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
-          <img src="/logo-128.png" alt="VNPAY Pickle" className="w-9 h-9 object-contain" style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))' }} />
+          <img src="/logo-128-v2.png" alt="VNPAY Pickle" className="w-9 h-9 object-contain" style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))' }} />
           <span className="font-display font-bold text-lg">
             <span className="text-vnpay-blue">VNPAY</span>
             <span className="text-vnpay-red"> Pickle</span>

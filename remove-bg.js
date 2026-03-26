@@ -1,11 +1,10 @@
-// Ultra-aggressive background removal for VNPAY logo checkerboards
+// Final version: Perfect transparency + Cache busting
 const sharp = require('sharp');
 const path = require('path');
 
 async function removeBackground(input, output) {
   const image = sharp(input);
   const { width: w, height: h } = await image.metadata();
-  
   const rawBuffer = await image.ensureAlpha().raw().toBuffer();
   
   for (let i = 0; i < w * h; i++) {
@@ -14,23 +13,18 @@ async function removeBackground(input, output) {
     const g = rawBuffer[idx + 1];
     const b = rawBuffer[idx + 2];
     
-    // Calculate brightness
     const brightness = (r + g + b) / 3;
+    const saturation = Math.max(r, g, b) - Math.min(r, g, b);
     
-    // Calculate saturation/deviation - colored pixels should stay
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const saturation = max - min;
-    
-    // IF it's very bright (white-ish)
-    // OR if it's achromatic (r~g~b) and fairly bright (checkerboard grey)
-    // AND it's not a colored part of the logo (saturation < 15)
-    if (brightness > 240 || (brightness > 160 && saturation < 25)) {
-      rawBuffer[idx + 3] = 0; // Make transparent
+    // If it's bright white OR achromatic light grey (checkerboard)
+    if (brightness > 245 || (brightness > 150 && saturation < 30)) {
+      rawBuffer[idx] = 0;
+      rawBuffer[idx+1] = 0;
+      rawBuffer[idx+2] = 0;
+      rawBuffer[idx+3] = 0; // Pure transparent black
     }
   }
   
-  // Save result
   await sharp(rawBuffer, { raw: { width: w, height: h, channels: 4 } })
     .png()
     .trim()
@@ -41,20 +35,28 @@ async function removeBackground(input, output) {
 
 async function main() {
   const publicDir = path.resolve('public');
-  const logos = ['logo.png', 'logo-192.png', 'logo-128.png', 'vnpay-logo.png'];
   
-  for (const logo of logos) {
-    const logoPath = path.join(publicDir, logo);
-    console.log(`🧹 Aggressively cleaning ${logo}...`);
+  // Define source mapping from Downloads (or already copied public files)
+  const files = [
+    { src: 'logo.png', out: 'logo-v2.png' },
+    { src: 'logo-192.png', out: 'logo-192-v2.png' },
+    { src: 'logo-128.png', out: 'logo-128-v2.png' },
+    { src: 'vnpay-logo.png', out: 'vnpay-logo-v2.png' }
+  ];
+  
+  for (const f of files) {
+    const inPath = path.join(publicDir, f.src);
+    const outPath = path.join(publicDir, f.out);
+    console.log(`🧹 Processing ${f.src} -> ${f.out}...`);
     try {
-      await removeBackground(logoPath, logoPath);
+      await removeBackground(inPath, outPath);
     } catch (e) {
       console.error(`❌ Failed:`, e.message);
     }
   }
   
-  // Re-generate PWA icons from the now ultra-clean logo.png
-  const mainLogo = path.join(publicDir, 'logo.png');
+  // Update icons/icon-xxx.png from logo-v2.png
+  const mainLogo = path.join(publicDir, 'logo-v2.png');
   const transparent = await sharp(mainLogo).toBuffer();
   
   await sharp(transparent)
@@ -67,7 +69,7 @@ async function main() {
     .png()
     .toFile(path.join(publicDir, 'icons', 'icon-512.png'));
   
-  console.log('🎉 Done! Checkers should be gone.');
+  console.log('\n🎉 Done! All logos cleaned and renamed to -v2 to bust cache.');
 }
 
 main().catch(console.error);

@@ -46,7 +46,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <img
-          src="/logo-128.png"
+          src="/logo-128-v2.png"
           alt="VNPAY Pickle"
           className="w-24 h-24 object-contain animate-pulse"
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0, 0, 0, 0.15))' }}
@@ -66,7 +66,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <img
-          src="/logo-128.png"
+          src="/logo-128-v2.png"
           alt="VNPAY Pickle"
           className="w-24 h-24 object-contain animate-pulse"
           style={{ filter: 'drop-shadow(0 8px 24px rgba(0, 0, 0, 0.15))' }}
@@ -87,7 +87,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       </main>
       <footer className="hidden md:block border-t border-[var(--border-color)] py-6 text-center text-sm text-[var(--muted-fg)]">
         <div className="flex items-center justify-center gap-3">
-          <img src="/vnpay-logo.png" alt="VNPAY" className="h-6 object-contain" />
+          <img src="/vnpay-logo-v2.png" alt="VNPAY" className="h-6 object-contain" />
           <span>VNPAY Pickle — Nền tảng Pickleball nội bộ VNPAY</span>
         </div>
       </footer>

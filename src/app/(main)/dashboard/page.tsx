@@ -37,7 +37,7 @@ export default function DashboardPage() {
       >
         <div className="absolute top-2 right-2 opacity-20 leading-none select-none">
           <img
-            src="/logo.png"
+            src="/logo-v2.png"
             alt=""
             className="w-32 h-32 object-contain"
             style={{ filter: 'drop-shadow(0 4px 16px rgba(255, 255, 255, 0.2))' }}

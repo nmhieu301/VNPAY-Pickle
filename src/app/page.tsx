@@ -269,7 +269,7 @@ function LoginForm() {
                             shadow-2xl
                             hover:scale-105 transition-transform duration-500">
               <img
-                src="/logo.png"
+                src="/logo-v2.png"
                 alt="VNPAY Pickle"
                 className="w-28 h-28 md:w-36 md:h-36 object-contain"
                 style={{ filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15))' }}
@@ -329,7 +329,7 @@ function LoginForm() {
           {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
             <img
-              src="/logo.png"
+              src="/logo-v2.png"
               alt="VNPAY Pickle"
               className="w-24 h-24 object-contain mx-auto mb-3"
               style={{ filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))' }}
