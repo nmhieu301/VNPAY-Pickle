@@ -39,10 +39,14 @@ export default function ProfilePage() {
   };
 
   const startEdit = () => {
+    // Normalize raw DB value 'any' → 'flexible' for the UI toggle
+    const pos = (currentUser.position_preference as string) === 'any'
+      ? 'flexible' as PositionPreference
+      : currentUser.position_preference || 'flexible';
     setEditForm({
       nickname: currentUser.nickname || '',
       hand_preference: currentUser.hand_preference || 'right',
-      position_preference: currentUser.position_preference || 'flexible',
+      position_preference: pos,
       experience: currentUser.experience || 'beginner',
       bio: currentUser.bio || '',
     });

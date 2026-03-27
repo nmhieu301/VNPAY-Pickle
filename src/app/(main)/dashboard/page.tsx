@@ -52,10 +52,12 @@ export default function DashboardPage() {
             return 'Chào buổi tối! 🌙';
           })()}</p>
           <h1 className="text-2xl font-display font-bold mt-1">
-            {(() => {
-              const username = currentUser.email.split('@')[0];
-              return username.charAt(0).toUpperCase() + username.slice(1);
-            })()}
+            {currentUser.nickname
+              ? currentUser.nickname
+              : (() => {
+                  const username = currentUser.email.split('@')[0];
+                  return username.charAt(0).toUpperCase() + username.slice(1);
+                })()}
           </h1>
           <div className="flex items-center gap-3 mt-3">
             <TierBadge elo={currentUser.elo_rating} showElo size="md" />
