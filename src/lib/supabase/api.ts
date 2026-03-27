@@ -403,19 +403,24 @@ export async function adminCreatePlayerDB(data: {
 }
 
 export async function adminDeletePlayerDB(playerId: string): Promise<boolean> {
-  // Cascade: remove from session_players, match_players, group_members first
-  await supabase.from('session_players').delete().eq('player_id', playerId);
-  await supabase.from('match_players').delete().eq('player_id', playerId);
-  await supabase.from('group_members').delete().eq('player_id', playerId);
-  await supabase.from('elo_history').delete().eq('player_id', playerId);
+  // Call server-side API route which uses service role key to bypass RLS
+  try {
+    const res = await fetch('/api/admin/players', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId }),
+    });
 
-  const { error } = await supabase
-    .from('players')
-    .delete()
-    .eq('id', playerId);
-
-  if (error) { console.error('adminDeletePlayerDB error:', error); return false; }
-  return true;
+    if (!res.ok) {
+      const data = await res.json();
+      console.error('adminDeletePlayerDB error:', data);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('adminDeletePlayerDB fetch error:', err);
+    return false;
+  }
 }
 
 // ═══════════════════════════════════════════
