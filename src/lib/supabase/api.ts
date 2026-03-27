@@ -341,13 +341,24 @@ export async function createVenueDB(venueData: {
   return mapVenue(data);
 }
 
-export async function updatePlayerDB(playerId: string, updates: Partial<Player>): Promise<boolean> {
-  const dbUpdates: any = {};
+export async function updatePlayerDB(playerId: string, updates: Partial<Player> & Record<string, unknown>): Promise<boolean> {
+  const dbUpdates: Record<string, unknown> = {};
   if (updates.full_name !== undefined) dbUpdates.full_name = updates.full_name;
   if (updates.nickname !== undefined) dbUpdates.nickname = updates.nickname;
   if (updates.elo_rating !== undefined) dbUpdates.elo_rating = updates.elo_rating;
   if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
   if (updates.role !== undefined) dbUpdates.role = updates.role;
+  // Profile fields (map frontend names → DB column names)
+  if (updates.hand_preference !== undefined) dbUpdates.preferred_hand = updates.hand_preference;
+  if (updates.position_preference !== undefined) dbUpdates.preferred_position = updates.position_preference;
+  if (updates.experience !== undefined) {
+    const expMap: Record<string, string> = {
+      beginner: 'beginner', under_6m: 'beginner', '6_12m': 'intermediate',
+      '1_2y': 'advanced', over_2y: 'expert',
+    };
+    dbUpdates.experience_level = expMap[updates.experience] || 'beginner';
+  }
+  if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
 
   const { error } = await supabase
     .from('players')

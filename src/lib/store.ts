@@ -53,6 +53,9 @@ interface AppStore {
   adminUpdateGroup: (groupId: string, updates: Partial<Group>) => Promise<boolean>;
   adminDeleteGroup: (groupId: string) => Promise<boolean>;
 
+  // Profile
+  updateProfile: (updates: Partial<Player>) => Promise<boolean>;
+
   // Data
   players: Player[];
   departments: Department[];
@@ -201,6 +204,16 @@ export const useAppStore = create<AppStore>()(
 
       adminDeleteGroup: async (groupId) => {
         return await adminDeleteGroupDB(groupId);
+      },
+
+      updateProfile: async (updates) => {
+        const user = get().currentUser;
+        if (!user) return false;
+        const ok = await updatePlayerDB(user.id, updates);
+        if (ok) {
+          set({ currentUser: { ...user, ...updates } });
+        }
+        return ok;
       },
 
       // ─── Data ───
