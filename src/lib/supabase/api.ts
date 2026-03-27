@@ -348,10 +348,15 @@ export async function updatePlayerDB(playerId: string, updates: Partial<Player> 
   if (updates.elo_rating !== undefined) dbUpdates.elo_rating = updates.elo_rating;
   if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
   if (updates.role !== undefined) dbUpdates.role = updates.role;
-  // Profile fields (map frontend names → DB column names)
+  // Profile fields — REVERSE map frontend values → DB column values
   if (updates.hand_preference !== undefined) dbUpdates.preferred_hand = updates.hand_preference;
-  if (updates.position_preference !== undefined) dbUpdates.preferred_position = updates.position_preference;
+  if (updates.position_preference !== undefined) {
+    // Frontend 'flexible' → DB 'any'
+    const posMap: Record<string, string> = { forehand: 'forehand', backhand: 'backhand', flexible: 'any' };
+    dbUpdates.preferred_position = posMap[updates.position_preference] || 'any';
+  }
   if (updates.experience !== undefined) {
+    // Frontend experience labels → DB experience_level enum
     const expMap: Record<string, string> = {
       beginner: 'beginner', under_6m: 'beginner', '6_12m': 'intermediate',
       '1_2y': 'advanced', over_2y: 'expert',
