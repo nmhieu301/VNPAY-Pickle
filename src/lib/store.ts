@@ -98,14 +98,18 @@ export const useAppStore = create<AppStore>()(
 
       initAuth: () => {
         const supabase = createClient();
+        let loginHandled = false; // Prevent duplicate loginWithEmail calls
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (_event, session) => {
             if (session?.user?.email) {
-              const email = session.user.email;
-              set({ authEmail: email });
-              // Auto-login: find or create player
-              await get().loginWithEmail(email);
+              // INITIAL_SESSION fires first from onAuthStateChange — no need for getSession()
+              if (!loginHandled) {
+                loginHandled = true;
+                set({ authEmail: session.user.email });
+                await get().loginWithEmail(session.user.email);
+              }
             } else {
+              loginHandled = false;
               set({
                 currentUser: null,
                 isAuthenticated: false,
@@ -115,13 +119,6 @@ export const useAppStore = create<AppStore>()(
             }
           }
         );
-        // Also check current session immediately
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session?.user?.email) {
-            set({ authEmail: session.user.email });
-            get().loginWithEmail(session.user.email);
-          }
-        });
         return () => subscription.unsubscribe();
       },
 
@@ -377,11 +374,19 @@ export const useAppStore = create<AppStore>()(
       getSession: (id) => get().sessions.find(s => s.id === id),
     }),
     {
-      name: 'vnpay-pickle-store',
+      name: 'vnpay-pickle-store-v2',
       partialize: (state) => ({
         currentUser: state.currentUser,
         isAuthenticated: state.isAuthenticated,
         matchingResults: state.matchingResults,
+        // ⚡ Persist data so no reload spinner on revisit
+        players: state.players,
+        sessions: state.sessions,
+        departments: state.departments,
+        venues: state.venues,
+        sessionPlayers: state.sessionPlayers,
+        checkedInPlayers: state.checkedInPlayers,
+        isInitialized: state.isInitialized,
       }),
     }
   )
