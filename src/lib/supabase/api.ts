@@ -412,8 +412,14 @@ export async function adminDeletePlayerDB(playerId: string): Promise<boolean> {
     });
 
     if (!res.ok) {
-      const data = await res.json();
-      console.error('adminDeletePlayerDB error:', data);
+      // Read as text first to avoid "body stream already read" errors
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        console.error('adminDeletePlayerDB error:', data);
+      } catch {
+        console.error('adminDeletePlayerDB error (raw):', res.status, text);
+      }
       return false;
     }
     return true;
