@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { TierBadge } from '@/components/player/TierBadge';
-import { Bell, Moon, Sun, LogOut, Menu, X, Users2 } from 'lucide-react';
+import { Bell, Moon, Sun, LogOut, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useGroupStore } from '@/lib/groupStore';
 
@@ -22,8 +22,11 @@ export function Header() {
   const logout = useAppStore(s => s.logout);
   const isAdmin = useAppStore(s => s.isAdmin());
   const myPendingInvitations = useGroupStore(s => s.myPendingInvitations);
+  const respondToInvitation = useGroupStore(s => s.respondToInvitation);
   const [isDark, setIsDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
 
   const hasNotifications = myPendingInvitations.length > 0;
 
@@ -47,6 +50,13 @@ export function Header() {
       }
       return next;
     });
+  };
+
+  const handleRespond = async (invitationId: string, accept: boolean) => {
+    if (!currentUser) return;
+    setRespondingId(invitationId);
+    await respondToInvitation(invitationId, accept, currentUser.id);
+    setRespondingId(null);
   };
 
   return (
@@ -102,12 +112,83 @@ export function Header() {
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          <Link href="/groups" className="btn btn-ghost btn-icon relative" title="Lời mời nhóm">
-            <Bell className="w-4 h-4" />
-            {hasNotifications && (
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+          {/* 🔔 Notification Bell Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => { setNotifOpen(o => !o); setMenuOpen(false); }}
+              className="btn btn-ghost btn-icon relative"
+              title="Thông báo"
+            >
+              <Bell className="w-4 h-4" />
+              {hasNotifications && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </button>
+
+            {notifOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-[var(--border-color)] bg-[var(--surface)] shadow-xl z-50 overflow-hidden">
+                  {/* Panel header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]">
+                    <h3 className="font-semibold text-sm">🔔 Thông báo</h3>
+                    {hasNotifications && (
+                      <span className="text-xs bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">
+                        {myPendingInvitations.length} mới
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="max-h-80 overflow-y-auto">
+                    {myPendingInvitations.length === 0 ? (
+                      <div className="py-10 text-center">
+                        <p className="text-2xl mb-2">🎉</p>
+                        <p className="text-sm text-[var(--muted-fg)]">Không có thông báo mới</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-[var(--border-color)]">
+                        {myPendingInvitations.map(inv => (
+                          <div key={inv.id} className="px-4 py-3">
+                            <p className="text-sm font-medium mb-0.5">👥 Lời mời tham gia nhóm</p>
+                            <p className="text-xs text-[var(--muted-fg)] mb-3">
+                              Bạn được mời vào nhóm{' '}
+                              <span className="font-semibold text-[var(--fg)]">
+                                {(inv as any).group_name || 'một nhóm'}
+                              </span>
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleRespond(inv.id, true)}
+                                disabled={respondingId === inv.id}
+                                className="flex-1 btn btn-gradient btn-sm text-xs"
+                              >
+                                {respondingId === inv.id ? '...' : '✓ Chấp nhận'}
+                              </button>
+                              <button
+                                onClick={() => handleRespond(inv.id, false)}
+                                disabled={respondingId === inv.id}
+                                className="flex-1 btn btn-ghost btn-sm text-xs"
+                              >
+                                ✕ Từ chối
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="border-t border-[var(--border-color)] px-4 py-2">
+                    <Link href="/groups" onClick={() => setNotifOpen(false)} className="text-xs text-[var(--primary)] hover:underline">
+                      Xem tất cả nhóm →
+                    </Link>
+                  </div>
+                </div>
+              </>
             )}
-          </Link>
+          </div>
 
           {currentUser && (
             <Link href="/profile" className="hidden sm:flex items-center gap-2 ml-1">
@@ -124,13 +205,12 @@ export function Header() {
           {/* Menu toggle */}
           <div className="relative">
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
+              onClick={() => { setMenuOpen(!menuOpen); setNotifOpen(false); }}
               className="btn btn-ghost btn-icon"
             >
               {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            {/* Dropdown popup */}
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
