@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════
 
 import { createClient } from './client';
-import type { Player, Session, Department, Venue, SessionPlayer } from '@/types';
+import type { Player, Session, Department, Venue, SessionPlayer, Group } from '@/types';
 import { calculateTier } from '@/lib/algorithms/elo';
 
 const supabase = createClient();
@@ -370,3 +370,139 @@ export async function deleteSessionDB(sessionId: string): Promise<boolean> {
   if (error) { console.error('deleteSessionDB error:', error); return false; }
   return true;
 }
+
+// ═══════════════════════════════════════════
+// ADMIN — PLAYER CRUD
+// ═══════════════════════════════════════════
+
+export async function adminCreatePlayerDB(data: {
+  email: string;
+  full_name: string;
+  nickname?: string;
+  elo_rating?: number;
+}): Promise<Player | null> {
+  const { data: row, error } = await supabase
+    .from('players')
+    .insert({
+      email: data.email,
+      full_name: data.full_name,
+      nickname: data.nickname || data.email.split('@')[0],
+      elo_rating: data.elo_rating || 1200,
+      total_matches: 0,
+      wins: 0,
+      losses: 0,
+      win_rate: 0,
+      best_streak: 0,
+      current_streak: 0,
+    })
+    .select()
+    .single();
+
+  if (error) { console.error('adminCreatePlayerDB error:', error); return null; }
+  return mapPlayer(row);
+}
+
+export async function adminDeletePlayerDB(playerId: string): Promise<boolean> {
+  // Cascade: remove from session_players, match_players, group_members first
+  await supabase.from('session_players').delete().eq('player_id', playerId);
+  await supabase.from('match_players').delete().eq('player_id', playerId);
+  await supabase.from('group_members').delete().eq('player_id', playerId);
+  await supabase.from('elo_history').delete().eq('player_id', playerId);
+
+  const { error } = await supabase
+    .from('players')
+    .delete()
+    .eq('id', playerId);
+
+  if (error) { console.error('adminDeletePlayerDB error:', error); return false; }
+  return true;
+}
+
+// ═══════════════════════════════════════════
+// ADMIN — GROUP CRUD
+// ═══════════════════════════════════════════
+
+function mapGroup(row: Record<string, unknown>): Group {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: row.description as string | null,
+    avatar_url: row.avatar_url as string | null,
+    owner_id: row.owner_id as string,
+    privacy: (row.privacy as Group['privacy']) || 'private',
+    join_mode: (row.join_mode as Group['join_mode']) || 'invite_only',
+    max_members: row.max_members as number ?? 50,
+    enable_group_elo: row.enable_group_elo as boolean ?? false,
+    enable_auto_matching: row.enable_auto_matching as boolean ?? true,
+    invite_code: row.invite_code as string ?? '',
+    member_count: row.member_count as number ?? 0,
+    is_active: row.is_active as boolean ?? true,
+    created_at: row.created_at as string,
+  };
+}
+
+export async function fetchGroupsAdmin(): Promise<Group[]> {
+  const { data, error } = await supabase
+    .from('groups')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) { console.error('fetchGroupsAdmin error:', error); return []; }
+  return (data || []).map(mapGroup);
+}
+
+export async function adminCreateGroupDB(data: {
+  name: string;
+  description?: string;
+  owner_id: string;
+  max_members?: number;
+}): Promise<Group | null> {
+  const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const { data: row, error } = await supabase
+    .from('groups')
+    .insert({
+      name: data.name,
+      description: data.description || null,
+      owner_id: data.owner_id,
+      max_members: data.max_members || 50,
+      invite_code: inviteCode,
+    })
+    .select()
+    .single();
+
+  if (error) { console.error('adminCreateGroupDB error:', error); return null; }
+  return mapGroup(row);
+}
+
+export async function adminUpdateGroupDB(groupId: string, updates: Partial<Group>): Promise<boolean> {
+  const dbUpdates: Record<string, unknown> = {};
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.description !== undefined) dbUpdates.description = updates.description;
+  if (updates.max_members !== undefined) dbUpdates.max_members = updates.max_members;
+  if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
+
+  const { error } = await supabase
+    .from('groups')
+    .update(dbUpdates)
+    .eq('id', groupId);
+
+  if (error) { console.error('adminUpdateGroupDB error:', error); return false; }
+  return true;
+}
+
+export async function adminDeleteGroupDB(groupId: string): Promise<boolean> {
+  // Cascade: remove members, invitations, invite_links, join_requests
+  await supabase.from('group_invite_links').delete().eq('group_id', groupId);
+  await supabase.from('group_join_requests').delete().eq('group_id', groupId);
+  await supabase.from('group_invitations').delete().eq('group_id', groupId);
+  await supabase.from('group_members').delete().eq('group_id', groupId);
+
+  const { error } = await supabase
+    .from('groups')
+    .delete()
+    .eq('id', groupId);
+
+  if (error) { console.error('adminDeleteGroupDB error:', error); return false; }
+  return true;
+}
+

@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Player, Session, Department, Venue, Notification, MatchingResult } from '@/types';
+import { Player, Session, Department, Venue, Notification, MatchingResult, Group } from '@/types';
 import { INITIAL_ELO } from '@/lib/constants/tiers';
 import { calculateTier } from '@/lib/algorithms/elo';
 import { createClient } from '@/lib/supabase/client';
@@ -25,6 +25,12 @@ import {
   createVenueDB,
   updatePlayerDB,
   deleteSessionDB,
+  adminCreatePlayerDB,
+  adminDeletePlayerDB,
+  fetchGroupsAdmin,
+  adminCreateGroupDB,
+  adminUpdateGroupDB,
+  adminDeleteGroupDB,
 } from '@/lib/supabase/api';
 
 // ─── Store Interface ───
@@ -41,6 +47,11 @@ interface AppStore {
   // Admin Actions
   adminUpdatePlayer: (playerId: string, updates: Partial<Player>) => Promise<boolean>;
   adminDeleteSession: (sessionId: string) => Promise<boolean>;
+  adminCreatePlayer: (data: { email: string; full_name: string; nickname?: string; elo_rating?: number }) => Promise<Player | null>;
+  adminDeletePlayer: (playerId: string) => Promise<boolean>;
+  adminCreateGroup: (data: { name: string; description?: string; owner_id: string; max_members?: number }) => Promise<Group | null>;
+  adminUpdateGroup: (groupId: string, updates: Partial<Group>) => Promise<boolean>;
+  adminDeleteGroup: (groupId: string) => Promise<boolean>;
 
   // Data
   players: Player[];
@@ -162,6 +173,34 @@ export const useAppStore = create<AppStore>()(
           }));
         }
         return ok;
+      },
+
+      adminCreatePlayer: async (data) => {
+        const player = await adminCreatePlayerDB(data);
+        if (player) {
+          set(state => ({ players: [player, ...state.players] }));
+        }
+        return player;
+      },
+
+      adminDeletePlayer: async (playerId) => {
+        const ok = await adminDeletePlayerDB(playerId);
+        if (ok) {
+          set(state => ({ players: state.players.filter(p => p.id !== playerId) }));
+        }
+        return ok;
+      },
+
+      adminCreateGroup: async (data) => {
+        return await adminCreateGroupDB(data);
+      },
+
+      adminUpdateGroup: async (groupId, updates) => {
+        return await adminUpdateGroupDB(groupId, updates);
+      },
+
+      adminDeleteGroup: async (groupId) => {
+        return await adminDeleteGroupDB(groupId);
       },
 
       // ─── Data ───
