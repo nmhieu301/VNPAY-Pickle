@@ -128,8 +128,10 @@ export interface MatchPlayer {
 
 // ─── Tournament Types ───
 export type TournamentType = 'company' | 'group' | 'custom';
-export type TournamentFormat = 'group_knockout' | 'single_elimination' | 'double_elimination' | 'round_robin' | 'swiss';
+export type TournamentFormat = 'group_knockout' | 'single_elimination' | 'double_elimination' | 'round_robin' | 'swiss' | 'pool_playoff' | 'single_elim' | 'double_elim' | 'king_of_court';
 export type TournamentStatus = 'draft' | 'registration' | 'in_progress' | 'completed' | 'cancelled';
+export type ScoringSystem = 'side_out' | 'rally';
+export type SetsFormat = 'bo1' | 'bo3' | 'bo5';
 
 export interface Tournament {
   id: string;
@@ -143,13 +145,26 @@ export interface Tournament {
   category: string;
   max_teams: number;
   registration_deadline: string;
+  registration_open_date?: string | null;
   start_date: string;
   end_date: string;
   venue_id: string | null;
   venue?: Venue;
+  group_id?: string | null;
   status: TournamentStatus;
   rules: string | null;
   prizes: string | null;
+  // Phase 2 extended fields
+  scoring_system: ScoringSystem;
+  points_target: number;
+  sets_format: SetsFormat;
+  rest_minutes: number;
+  has_third_place: boolean;
+  is_paused: boolean;
+  entry_fee: number;
+  num_courts: number;
+  max_match_minutes: number | null;
+  special_rules: string | null;
   created_at: string;
 }
 
@@ -163,6 +178,155 @@ export interface TournamentTeam {
   player_2?: Player;
   seed_number: number | null;
   avg_elo: number;
+}
+
+// ─── Tournament Event (nội dung thi đấu) ───
+export type EventCategory =
+  | 'mens_doubles'
+  | 'womens_doubles'
+  | 'mixed_doubles'
+  | 'mens_singles'
+  | 'womens_singles'
+  | 'open_doubles';
+
+export type Division = 'open' | 'advanced' | 'intermediate' | 'beginner' | 'custom';
+
+export type EventFormat =
+  | 'round_robin'
+  | 'single_elim'
+  | 'double_elim'
+  | 'pool_playoff'
+  | 'swiss'
+  | 'king_of_court';
+
+export type EventStatus = 'registration' | 'bracket_set' | 'in_progress' | 'completed';
+
+export interface TournamentEvent {
+  id: string;
+  tournament_id: string;
+  category: EventCategory;
+  division: Division;
+  elo_min: number | null;
+  elo_max: number | null;
+  format: EventFormat;
+  max_teams: number;
+  num_pools: number | null;
+  teams_advance_per_pool: number;
+  swiss_rounds: number | null;
+  status: EventStatus;
+  created_at: string;
+  // Computed
+  teams?: TournamentTeamExtended[];
+  matches?: TournamentMatch[];
+  standings?: TournamentStanding[];
+}
+
+// Extended team (from tournament_teams table)
+export type TeamStatus = 'pending' | 'confirmed' | 'withdrawn' | 'disqualified';
+
+export interface TournamentTeamExtended {
+  id: string;
+  event_id: string;
+  player1_id: string;
+  player2_id: string | null;
+  player1?: Player;
+  player2?: Player;
+  team_name: string | null;
+  seed_number: number | null;
+  avg_elo: number | null;
+  pool_letter: string | null;
+  status: TeamStatus;
+  checked_in: boolean;
+  registered_at: string;
+}
+
+// Tournament match
+export type MatchRoundType =
+  | 'pool'
+  | 'winner_r1' | 'winner_r2' | 'winner_r3' | 'winner_r4'
+  | 'loser_r1' | 'loser_r2' | 'loser_r3' | 'loser_r4'
+  | 'quarter' | 'semi' | 'final' | 'third_place' | 'grand_final'
+  | 'swiss_r1' | 'swiss_r2' | 'swiss_r3' | 'swiss_r4' | 'swiss_r5' | 'swiss_r6'
+  | 'kotc_round';
+
+export type TournamentMatchStatus = 'scheduled' | 'live' | 'completed' | 'forfeit' | 'dispute' | 'cancelled';
+
+export interface SetScore {
+  a: number | null;
+  b: number | null;
+}
+
+export interface TournamentMatch {
+  id: string;
+  event_id: string;
+  round_type: MatchRoundType;
+  round_number: number | null;
+  match_number: number | null;
+  team_a_id: string | null;
+  team_b_id: string | null;
+  team_a?: TournamentTeamExtended;
+  team_b?: TournamentTeamExtended;
+  court_number: number | null;
+  scheduled_time: string | null;
+  sets: SetScore[]; // Computed from set1_a/set1_b...
+  set1_a: number | null; set1_b: number | null;
+  set2_a: number | null; set2_b: number | null;
+  set3_a: number | null; set3_b: number | null;
+  set4_a: number | null; set4_b: number | null;
+  set5_a: number | null; set5_b: number | null;
+  winner_team_id: string | null;
+  status: TournamentMatchStatus;
+  is_walkover: boolean;
+  dispute_note: string | null;
+  score_confirmed_by_a: boolean;
+  score_confirmed_by_b: boolean;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface TournamentStanding {
+  id: string;
+  event_id: string;
+  team_id: string;
+  team?: TournamentTeamExtended;
+  pool_letter: string | null;
+  wins: number;
+  losses: number;
+  points_for: number;
+  points_against: number;
+  point_differential: number;
+  buchholz_score: number | null;
+  rank_in_pool: number | null;
+}
+
+// Bracket node types for UI
+export interface BracketSlot {
+  matchId: string | null; // null = bye
+  teamId: string | null;
+  score: number | null;
+  isWinner: boolean;
+}
+
+export interface BracketMatch {
+  id: string;
+  round: number;
+  position: number;
+  slotA: BracketSlot;
+  slotB: BracketSlot;
+  nextMatchId: string | null; // where winner goes
+  nextMatchSide: 'A' | 'B' | null;
+  roundType: MatchRoundType;
+  status: TournamentMatchStatus;
+}
+
+// Auto-schedule config
+export interface ScheduleConfig {
+  numCourts: number;
+  matchDurationMinutes: number;
+  restMinutes: number;
+  startTime: string; // HH:MM
+  endTime: string;   // HH:MM
+  startDate: string; // YYYY-MM-DD
 }
 
 // ─── ELO History ───
