@@ -616,3 +616,86 @@ export interface RecurrenceConfig {
   endsOn?: string;
   maxOccurrences?: number;
 }
+
+// ─── Attendance Types ───────────────────────────────────────
+export type RsvpStatus = 'going' | 'not_going' | 'maybe' | 'no_response';
+export type CheckinMethod = 'self' | 'host' | 'qr';
+export type AttendanceFinalStatus = 'present' | 'excused' | 'no_show' | 'no_response';
+
+export interface Attendance {
+  id: string;
+  schedule_id: string;
+  occurrence_date: string;     // 'YYYY-MM-DD' — key cho RSVP trước khi session tồn tại
+  session_id: string | null;   // null cho đến khi session được generate
+  player_id: string;
+  player?: Player;
+
+  // RSVP
+  rsvp_status: RsvpStatus;
+  rsvp_reason: string | null;
+  rsvp_at: string | null;
+
+  // Check-in
+  checked_in: boolean;
+  checkin_method: CheckinMethod | null;
+  checkin_at: string | null;
+
+  // Final (tính sau buổi)
+  final_status: AttendanceFinalStatus | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttendanceStreak {
+  id: string;
+  player_id: string;
+  player?: Player;
+  schedule_id: string;
+  current_streak: number;
+  longest_streak: number;
+  last_present_date: string | null;
+  last_updated_at: string;
+}
+
+export interface AttendanceSettings {
+  id: string;
+  group_id: string | null;
+  schedule_id: string | null;
+  require_rsvp: boolean;
+  rsvp_deadline_hours: number;
+  checkin_open_before_minutes: number;
+  checkin_close_after_minutes: number;
+  qr_checkin_enabled: boolean;
+  inactive_reminder_enabled: boolean;
+  inactive_threshold_sessions: number;
+  monthly_digest_enabled: boolean;
+  show_streak: boolean;
+}
+
+// Computed stats per member (for AttendanceTable)
+export interface MemberAttendanceStat {
+  player_id: string;
+  player: Player;
+  total_sessions: number;
+  present_count: number;
+  excused_count: number;
+  no_show_count: number;
+  no_response_count: number;
+  attendance_rate: number;    // present / (total - excused) * 100
+  current_streak: number;
+  longest_streak: number;
+}
+
+// Summary for a single occurrence (for AttendanceBySession)
+export interface SessionAttendanceSummary {
+  occurrence_date: string;
+  session_id: string | null;
+  going: Attendance[];
+  not_going: Attendance[];
+  maybe: Attendance[];
+  no_response: Attendance[];
+  checked_in: Attendance[];
+  no_show: Attendance[];
+  total_members: number;
+}

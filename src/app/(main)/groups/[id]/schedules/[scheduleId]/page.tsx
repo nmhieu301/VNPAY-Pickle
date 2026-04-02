@@ -10,15 +10,21 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, MapPin, Users, Clock, CalendarRange,
-  Repeat, Settings, ChevronDown, ChevronUp, Loader2,
+  Repeat, Settings, ChevronDown, ChevronUp, Loader2, CalendarCheck,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { useRecurringSchedule } from '@/hooks/useRecurringSchedule';
+import { useAttendance } from '@/hooks/useAttendance';
 import { ScheduleCalendar } from '@/components/schedule/ScheduleCalendar';
 import { SubscribeButton } from '@/components/schedule/SubscribeButton';
 import { ExceptionModal } from '@/components/schedule/ExceptionModal';
 import { SessionCard } from '@/components/session/SessionCard';
 import { TierBadge } from '@/components/player/TierBadge';
+import { RsvpButtons } from '@/components/attendance/RsvpButtons';
+import { AttendanceSummary } from '@/components/attendance/AttendanceSummary';
+import { CheckInButton } from '@/components/attendance/CheckInButton';
+import { HostCheckInPanel } from '@/components/attendance/HostCheckInPanel';
+import { StreakBadge } from '@/components/attendance/StreakBadge';
 import { sendNotification } from '@/lib/supabase/committeeApi';
 
 export default function GroupScheduleDetailPage({
@@ -39,6 +45,17 @@ export default function GroupScheduleDetailPage({
   const [showPast, setShowPast] = useState(false);
   const [selectedCalDate, setSelectedCalDate] = useState<string | null>(null);
   const [exceptionModal, setExceptionModal] = useState<{ date: string } | null>(null);
+
+  // Buổi sắp tới: dùng nextDate để lấy occurrence_date cho RSVP
+  const nextOccurrenceDate: string | null = nextDate
+    ? (nextDate instanceof Date ? nextDate.toISOString().split('T')[0] : String(nextDate))
+    : (upcomingSessions[0]?.date ?? null);
+  const attendance = useAttendance({
+    scheduleId,
+    occurrenceDate: nextOccurrenceDate ?? '',
+    currentPlayerId: currentUser?.id ?? '',
+    startTime: schedule?.start_time?.slice(0, 5),
+  });
 
   if (isLoading || !schedule) {
     return (
@@ -166,6 +183,68 @@ export default function GroupScheduleDetailPage({
           />
         </div>
       </div>
+
+      {/* ─── RSVP & Check-in section ─── */}
+      {currentUser && nextOccurrenceDate && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-sm flex items-center gap-2">
+              <CalendarCheck className="w-4 h-4 text-[var(--primary)]" />
+              Điểm danh buổi tới
+            </h2>
+            {attendance.myStreak && attendance.myStreak.current_streak > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-[var(--muted-fg)]">
+                Streak của bạn: <StreakBadge streak={attendance.myStreak.current_streak} size="md" />
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Left: RSVP + check-in cá nhân */}
+            <div className="card p-4 space-y-4">
+              <RsvpButtons
+                currentStatus={attendance.myRecord?.rsvp_status ?? 'no_response'}
+                onRsvp={attendance.handleRsvp}
+                isSubmitting={attendance.isSubmitting}
+                occurrenceDate={nextOccurrenceDate}
+              />
+              {/* Check-in (chỉ hiện khi đã RSVP 'going' hoặc 'maybe') */}
+              {(attendance.myRecord?.rsvp_status === 'going' || attendance.myRecord?.rsvp_status === 'maybe') && (
+                <CheckInButton
+                  isCheckedIn={attendance.myRecord?.checked_in ?? false}
+                  canCheckIn={attendance.canCheckIn}
+                  isSubmitting={attendance.isSubmitting}
+                  onCheckIn={attendance.handleSelfCheckIn}
+                  startTime={schedule.start_time.slice(0, 5)}
+                />
+              )}
+            </div>
+
+            {/* Right: Tổng hợp RSVP */}
+            <div className="card p-4">
+              <AttendanceSummary
+                going={attendance.going}
+                notGoing={attendance.notGoing}
+                maybe={attendance.maybe}
+                noResponse={attendance.noResponse}
+                checkedIn={attendance.checkedIn}
+                numCourts={schedule.num_courts}
+                isBeforeSession={!attendance.canCheckIn || new Date() < new Date(`${nextOccurrenceDate}T${schedule.start_time}`)}
+              />
+            </div>
+          </div>
+
+          {/* Host panel */}
+          {isCreator && attendance.records.length > 0 && (
+            <div className="card p-4">
+              <HostCheckInPanel
+                records={attendance.records}
+                onCheckIn={attendance.handleHostCheckIn}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Calendar */}
       <ScheduleCalendar

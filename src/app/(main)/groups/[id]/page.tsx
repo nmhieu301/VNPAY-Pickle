@@ -6,11 +6,12 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { useGroupStore } from '@/lib/groupStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Users2, Copy, Check, Settings, Crown, Shield, UserPlus, Search, X, Clock, UserMinus, Link2, Mail, CalendarRange, Plus, Gamepad2, Repeat } from 'lucide-react';
+import { ArrowLeft, Users2, Copy, Check, Settings, Crown, Shield, UserPlus, Search, X, Clock, UserMinus, Link2, Mail, CalendarRange, Plus, Gamepad2, Repeat, BarChart3 } from 'lucide-react';
 import { PickleballIcon } from '@/components/icons/PickleballIcon';
 import { TierBadge } from '@/components/player/TierBadge';
 import { ScheduleCard } from '@/components/schedule/ScheduleCard';
 import { SessionCard } from '@/components/session/SessionCard';
+import { AttendancePanel } from '@/components/attendance/AttendancePanel';
 import { fetchGroupSchedules } from '@/lib/supabase/recurringApi';
 import type { GroupMember, RecurringSchedule, Session } from '@/types';
 
@@ -25,7 +26,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
     removeMember, updateMemberRole, createInviteLink, revokeInviteLink,
   } = useGroupStore();
 
-  const [tab, setTab] = useState<'members' | 'invite' | 'requests' | 'schedules'>('members');
+  const [tab, setTab] = useState<'members' | 'invite' | 'requests' | 'schedules' | 'attendance'>('members');
   const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showInviteSearch, setShowInviteSearch] = useState(false);
@@ -197,6 +198,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       <div className="flex items-center gap-2 flex-wrap">
         {([
           { key: 'schedules' as const, label: '📅 Lịch chơi', show: true },
+          { key: 'attendance' as const, label: '📊 Điểm danh', show: true },
           { key: 'members' as const, label: `👥 Thành viên (${members.length})`, show: true },
           { key: 'invite' as const, label: '✉️ Mời', show: isAdmin },
           { key: 'requests' as const, label: `📥 Yêu cầu (${joinRequests.length})`, show: isAdmin },
@@ -262,6 +264,17 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
               </Link>
             </div>
           )}
+        </motion.div>
+      )}
+
+      {/* ─── Điểm danh Tab ─── */}
+      {tab === 'attendance' && (
+        <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="card p-5">
+          <AttendancePanel
+            groupId={id}
+            schedules={groupSchedules}
+            isAdmin={isAdmin}
+          />
         </motion.div>
       )}
 
