@@ -185,7 +185,7 @@ export default function GroupScheduleDetailPage({
       </div>
 
       {/* ─── RSVP & Check-in section ─── */}
-      {currentUser && nextOccurrenceDate && (
+      {currentUser && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-sm flex items-center gap-2">
@@ -199,48 +199,61 @@ export default function GroupScheduleDetailPage({
             )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Left: RSVP + check-in cá nhân */}
-            <div className="card p-4 space-y-4">
-              <RsvpButtons
-                currentStatus={attendance.myRecord?.rsvp_status ?? 'no_response'}
-                onRsvp={attendance.handleRsvp}
-                isSubmitting={attendance.isSubmitting}
-                occurrenceDate={nextOccurrenceDate}
-              />
-              {/* Check-in (chỉ hiện khi đã RSVP 'going' hoặc 'maybe') */}
-              {(attendance.myRecord?.rsvp_status === 'going' || attendance.myRecord?.rsvp_status === 'maybe') && (
-                <CheckInButton
-                  isCheckedIn={attendance.myRecord?.checked_in ?? false}
-                  canCheckIn={attendance.canCheckIn}
-                  isSubmitting={attendance.isSubmitting}
-                  onCheckIn={attendance.handleSelfCheckIn}
-                  startTime={schedule.start_time.slice(0, 5)}
-                />
+          {/* Chưa có buổi tới */}
+          {!nextOccurrenceDate && (
+            <div className="card p-4 text-center text-[var(--muted-fg)] text-sm">
+              <p>📅 Chưa xác định được buổi tiếp theo</p>
+              <p className="text-xs mt-1">Lịch sẽ hiện RSVP khi có buổi sắp tới</p>
+            </div>
+          )}
+
+          {nextOccurrenceDate && (
+            <div className="space-y-3">
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Left: RSVP + check-in cá nhân */}
+                <div className="card p-4 space-y-4">
+                  <RsvpButtons
+                    currentStatus={attendance.myRecord?.rsvp_status ?? 'no_response'}
+                    onRsvp={attendance.handleRsvp}
+                    isSubmitting={attendance.isSubmitting}
+                    occurrenceDate={nextOccurrenceDate}
+                    error={attendance.error}
+                  />
+                  {/* Check-in (chỉ hiện khi đã RSVP 'going' hoặc 'maybe') */}
+                  {(attendance.myRecord?.rsvp_status === 'going' || attendance.myRecord?.rsvp_status === 'maybe') && (
+                    <CheckInButton
+                      isCheckedIn={attendance.myRecord?.checked_in ?? false}
+                      canCheckIn={attendance.canCheckIn}
+                      isSubmitting={attendance.isSubmitting}
+                      onCheckIn={attendance.handleSelfCheckIn}
+                      startTime={schedule.start_time.slice(0, 5)}
+                    />
+                  )}
+                </div>
+
+                {/* Right: Tổng hợp RSVP */}
+                <div className="card p-4">
+                  <AttendanceSummary
+                    going={attendance.going}
+                    notGoing={attendance.notGoing}
+                    maybe={attendance.maybe}
+                    noResponse={attendance.noResponse}
+                    checkedIn={attendance.checkedIn}
+                    numCourts={schedule.num_courts}
+                    isBeforeSession={!attendance.canCheckIn || new Date() < new Date(`${nextOccurrenceDate}T${schedule.start_time}`)}
+                  />
+                </div>
+              </div>
+
+              {/* Host panel */}
+              {isCreator && attendance.records.length > 0 && (
+                <div className="card p-4">
+                  <HostCheckInPanel
+                    records={attendance.records}
+                    onCheckIn={attendance.handleHostCheckIn}
+                  />
+                </div>
               )}
-            </div>
-
-            {/* Right: Tổng hợp RSVP */}
-            <div className="card p-4">
-              <AttendanceSummary
-                going={attendance.going}
-                notGoing={attendance.notGoing}
-                maybe={attendance.maybe}
-                noResponse={attendance.noResponse}
-                checkedIn={attendance.checkedIn}
-                numCourts={schedule.num_courts}
-                isBeforeSession={!attendance.canCheckIn || new Date() < new Date(`${nextOccurrenceDate}T${schedule.start_time}`)}
-              />
-            </div>
-          </div>
-
-          {/* Host panel */}
-          {isCreator && attendance.records.length > 0 && (
-            <div className="card p-4">
-              <HostCheckInPanel
-                records={attendance.records}
-                onCheckIn={attendance.handleHostCheckIn}
-              />
             </div>
           )}
         </div>

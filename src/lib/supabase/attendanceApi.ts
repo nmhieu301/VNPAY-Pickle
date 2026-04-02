@@ -19,8 +19,22 @@ export async function upsertRsvp(
   status: RsvpStatus,
   reason?: string,
 ): Promise<Attendance | null> {
+  if (!scheduleId || !occurrenceDate || !playerId) {
+    console.error('upsertRsvp: missing required params', { scheduleId, occurrenceDate, playerId });
+    return null;
+  }
+
   const supabase = createClient();
-  const { data, error } = await supabase
+
+  // Verify auth first
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error('upsertRsvp: not authenticated');
+    return null;
+  }
+
+  // Upsert (không dùng .single() để tránh PGRST116)
+  const { error: upsertError } = await supabase
     .from('attendance')
     .upsert({
       schedule_id: scheduleId,
@@ -29,10 +43,27 @@ export async function upsertRsvp(
       rsvp_status: status,
       rsvp_reason: reason ?? null,
       rsvp_at: new Date().toISOString(),
-    }, { onConflict: 'schedule_id,occurrence_date,player_id' })
+    }, { onConflict: 'schedule_id,occurrence_date,player_id' });
+
+  if (upsertError) {
+    console.error('upsertRsvp error:', JSON.stringify(upsertError));
+    return null;
+  }
+
+  // Fetch lại record vừa upsert
+  const { data, error: fetchError } = await supabase
+    .from('attendance')
     .select('*')
+    .eq('schedule_id', scheduleId)
+    .eq('occurrence_date', occurrenceDate)
+    .eq('player_id', playerId)
     .single();
-  if (error) { console.error('upsertRsvp:', error); return null; }
+
+  if (fetchError) {
+    console.error('upsertRsvp fetch-back error:', fetchError);
+    return null;
+  }
+
   return data as Attendance;
 }
 

@@ -2,7 +2,6 @@
 
 // ═══════════════════════════════════════════
 // VNPAY Pickle — useAttendance Hook
-// RSVP + Check-in lifecycle cho 1 occurrence
 // ═══════════════════════════════════════════
 
 import { useState, useEffect, useCallback } from 'react';
@@ -35,16 +34,19 @@ export function useAttendance({
   const [records, setRecords] = useState<Attendance[]>([]);
   const [myRecord, setMyRecord] = useState<Attendance | null>(null);
   const [myStreak, setMyStreak] = useState<AttendanceStreak | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Guard: không fetch nếu thiếu data cần thiết
+  const isReady = !!(scheduleId && occurrenceDate && currentPlayerId);
 
   // Check if we're inside the check-in window
   const canCheckIn = (() => {
     if (!occurrenceDate || !startTime) return false;
     const openBefore = settings?.checkin_open_before_minutes ?? 30;
     const closeAfter = settings?.checkin_close_after_minutes ?? 15;
-    const [h, m] = startTime.split(':').map(Number);
-    const sessionStart = new Date(`${occurrenceDate}T${startTime}`);
+    const sessionStart = new Date(`${occurrenceDate}T${startTime}:00`);
     const openTime = new Date(sessionStart.getTime() - openBefore * 60000);
     const closeTime = new Date(sessionStart.getTime() + closeAfter * 60000);
     const now = new Date();
@@ -52,19 +54,28 @@ export function useAttendance({
   })();
 
   const load = useCallback(async () => {
+    if (!isReady) return;
     setIsLoading(true);
-    const [recs, mine, streak] = await Promise.all([
-      fetchRsvpForOccurrence(scheduleId, occurrenceDate),
-      fetchMyRsvp(scheduleId, occurrenceDate, currentPlayerId),
-      fetchMyStreak(scheduleId, currentPlayerId),
-    ]);
-    setRecords(recs);
-    setMyRecord(mine);
-    setMyStreak(streak);
-    setIsLoading(false);
-  }, [scheduleId, occurrenceDate, currentPlayerId]);
+    setError(null);
+    try {
+      const [recs, mine, streak] = await Promise.all([
+        fetchRsvpForOccurrence(scheduleId, occurrenceDate),
+        fetchMyRsvp(scheduleId, occurrenceDate, currentPlayerId),
+        fetchMyStreak(scheduleId, currentPlayerId),
+      ]);
+      setRecords(recs);
+      setMyRecord(mine);
+      setMyStreak(streak);
+    } catch (e) {
+      console.error('useAttendance load error:', e);
+      setError('Không thể tải dữ liệu điểm danh');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [scheduleId, occurrenceDate, currentPlayerId, isReady]);
 
   useEffect(() => {
+    if (!isReady) return;
     load();
 
     // Realtime subscription
@@ -84,12 +95,21 @@ export function useAttendance({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [load, scheduleId, occurrenceDate]);
+  }, [load, scheduleId, occurrenceDate, isReady]);
 
-  const handleRsvp = async (status: RsvpStatus, reason?: string) => {
+  const handleRsvp = async (status: RsvpStatus, reason?: string): Promise<boolean> => {
+    if (!isReady) {
+      setError('Không thể xác định buổi chơi. Vui lòng thử lại.');
+      return false;
+    }
     setIsSubmitting(true);
+    setError(null);
+
+    console.log('[RSVP] submitting:', { scheduleId, occurrenceDate, currentPlayerId, status });
+
     const result = await upsertRsvp(scheduleId, occurrenceDate, currentPlayerId, status, reason);
     if (result) {
+      // Optimistic update
       setMyRecord(result);
       setRecords(prev => {
         const idx = prev.findIndex(r => r.player_id === currentPlayerId);
@@ -100,19 +120,30 @@ export function useAttendance({
         }
         return [result, ...prev];
       });
+      setIsSubmitting(false);
+      return true;
+    } else {
+      setError('Đăng ký thất bại. Hãy chắc chắn bạn đã đăng nhập và thử lại.');
+      setIsSubmitting(false);
+      return false;
     }
-    setIsSubmitting(false);
   };
 
-  const handleSelfCheckIn = async () => {
+  const handleSelfCheckIn = async (): Promise<boolean> => {
+    if (!isReady) return false;
     setIsSubmitting(true);
+    setError(null);
     const ok = await selfCheckIn(scheduleId, occurrenceDate, currentPlayerId);
-    if (ok) await load();
+    if (ok) {
+      await load();
+    } else {
+      setError('Check-in thất bại. Vui lòng thử lại.');
+    }
     setIsSubmitting(false);
     return ok;
   };
 
-  const handleHostCheckIn = async (playerId: string, checkedIn: boolean) => {
+  const handleHostCheckIn = async (playerId: string, checkedIn: boolean): Promise<boolean> => {
     const ok = await hostCheckIn(scheduleId, occurrenceDate, playerId, checkedIn);
     if (ok) await load();
     return ok;
@@ -126,7 +157,7 @@ export function useAttendance({
   const checkedIn = records.filter(r => r.checked_in);
 
   return {
-    records, myRecord, myStreak, isLoading, isSubmitting,
+    records, myRecord, myStreak, isLoading, isSubmitting, error, isReady,
     canCheckIn,
     going, notGoing, maybe, noResponse, checkedIn,
     handleRsvp, handleSelfCheckIn, handleHostCheckIn,
