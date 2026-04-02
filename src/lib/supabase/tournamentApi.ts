@@ -250,7 +250,13 @@ export async function createTournamentDB(data: {
     .insert(data)
     .select()
     .single();
-  if (error) { console.error('createTournamentDB:', error); return null; }
+  if (error) {
+    console.error('createTournamentDB error:', error.code, error.message, error.details);
+    if (error.code === '42P01') {
+      console.error('⚠️ Bảng "tournaments" chưa tồn tại! Hãy chạy scripts/tournament_migration.sql trên Supabase SQL Editor.');
+    }
+    return null;
+  }
   return mapTournament(row);
 }
 

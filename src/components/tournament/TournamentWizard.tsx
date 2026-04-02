@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useTournamentStore } from '@/lib/tournamentStore';
-import { ChevronLeft, ChevronRight, Check, Trophy, Calendar, MapPin, Gavel, Settings2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Trophy, Calendar, MapPin, Gavel, Settings2, RefreshCw } from 'lucide-react';
 
 type Step = 1 | 2 | 3 | 4;
 type TournamentType2 = 'company' | 'group' | 'custom';
@@ -78,6 +78,7 @@ export function TournamentWizard() {
   const router = useRouter();
   const currentUser = useAppStore(s => s.currentUser);
   const venues = useAppStore(s => s.venues);
+  const initializeData = useAppStore(s => s.initializeData);
   const createTournament = useTournamentStore(s => s.createTournament);
   const createTournamentEvent = useTournamentStore(s => s.createTournamentEvent);
 
@@ -85,6 +86,20 @@ export function TournamentWizard() {
   const [data, setData] = useState<WizardData>(DEFAULT);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [refreshingVenues, setRefreshingVenues] = useState(false);
+
+  // Auto-fetch venues khi vào step 4 nếu chưa có dữ liệu
+  useEffect(() => {
+    if (step === 4 && venues.length === 0) {
+      initializeData();
+    }
+  }, [step]);
+
+  const handleRefreshVenues = async () => {
+    setRefreshingVenues(true);
+    await initializeData();
+    setRefreshingVenues(false);
+  };
 
   const update = (patch: Partial<WizardData>) => { setData(prev => ({ ...prev, ...patch })); setErrors({}); };
 
@@ -120,40 +135,46 @@ export function TournamentWizard() {
   const handleSubmit = async () => {
     if (!validate() || !currentUser) return;
     setSaving(true);
-    const tournament = await createTournament({
-      name: data.name,
-      description: data.description || null,
-      organizer_id: currentUser.id,
-      type: data.type,
-      format: 'round_robin',
-      category: data.events.map(e => e.category).join(','),
-      max_teams: Math.max(...data.events.map(e => e.max_teams), 16),
-      registration_open_date: data.registration_open_date || null,
-      registration_deadline: data.registration_deadline,
-      start_date: data.start_date,
-      end_date: data.end_date,
-      venue_id: data.venue_id || null,
-      scoring_system: data.scoring_system,
-      points_target: data.points_target,
-      sets_format: data.sets_format,
-      rest_minutes: data.rest_minutes,
-      has_third_place: data.has_third_place,
-      entry_fee: data.entry_fee,
-      num_courts: data.num_courts,
-      rules: null,
-      prizes: data.prizes || null,
-      special_rules: data.special_rules || null,
-      status: 'registration',
-    });
-    if (tournament) {
-      for (const ev of data.events) {
-        await createTournamentEvent({ tournament_id: tournament.id, category: ev.category, division: ev.division, format: ev.format, max_teams: ev.max_teams, teams_advance_per_pool: 2 });
+    try {
+      const tournament = await createTournament({
+        name: data.name,
+        description: data.description || null,
+        organizer_id: currentUser.id,
+        type: data.type,
+        format: 'round_robin',
+        category: data.events.map(e => e.category).join(','),
+        max_teams: data.events.length > 0 ? Math.max(...data.events.map(e => e.max_teams)) : 16,
+        registration_open_date: data.registration_open_date || null,
+        registration_deadline: data.registration_deadline,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        venue_id: data.venue_id || null,
+        scoring_system: data.scoring_system,
+        points_target: data.points_target,
+        sets_format: data.sets_format,
+        rest_minutes: data.rest_minutes,
+        has_third_place: data.has_third_place,
+        entry_fee: data.entry_fee,
+        num_courts: data.num_courts,
+        rules: null,
+        prizes: data.prizes || null,
+        special_rules: data.special_rules || null,
+        status: 'registration',
+      });
+      if (tournament) {
+        for (const ev of data.events) {
+          await createTournamentEvent({ tournament_id: tournament.id, category: ev.category, division: ev.division, format: ev.format, max_teams: ev.max_teams, teams_advance_per_pool: 2 });
+        }
+        router.push(`/tournaments/${tournament.id}`);
+      } else {
+        setErrors({ submit: '❌ Tạo giải thất bại. Hãy kiểm tra Console để xem lỗi chi tiết từ Supabase.' });
       }
-      router.push(`/tournaments/${tournament.id}`);
-    } else {
-      setErrors({ submit: 'Tạo giải thất bại, vui lòng thử lại' });
+    } catch (err) {
+      console.error('handleSubmit error:', err);
+      setErrors({ submit: `❌ Lỗi: ${err instanceof Error ? err.message : 'Không rõ nguyên nhân. Kiểm tra Console.'}` });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const btnStyle = (active: boolean) => `flex-1 py-2 rounded-lg border text-sm font-medium transition-all ${active ? 'border-[var(--primary)] bg-[var(--primary)] text-white' : 'border-[var(--border-color)] hover:border-[var(--primary)]'}`;
@@ -327,11 +348,21 @@ export function TournamentWizard() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium block mb-1.5"><MapPin className="w-3.5 h-3.5 inline mr-1" />Địa điểm</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Địa điểm</label>
+                <button type="button" onClick={handleRefreshVenues} disabled={refreshingVenues}
+                  className="text-xs text-[var(--primary)] flex items-center gap-1 hover:underline disabled:opacity-50">
+                  <RefreshCw className={`w-3 h-3 ${refreshingVenues ? 'animate-spin' : ''}`} />
+                  {refreshingVenues ? 'Đang tải...' : `Tải lại (${venues.length} sân)`}
+                </button>
+              </div>
               <select className="input" value={data.venue_id} onChange={e => update({ venue_id: e.target.value })}>
-                <option value="">-- Chọn sân --</option>
+                <option value="">-- Chọn sân (không bắt buộc) --</option>
                 {venues.map(v => <option key={v.id} value={v.id}>{v.name}{v.district ? ` — ${v.district}` : ''}</option>)}
               </select>
+              {venues.length === 0 && (
+                <p className="text-xs text-amber-500 mt-1">⚠️ Không có dữ liệu sân. Nhấn "Tải lại" hoặc bỏ qua nếu chưa chọn sân.</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
