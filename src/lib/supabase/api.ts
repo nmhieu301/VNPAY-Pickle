@@ -71,6 +71,8 @@ function mapSession(row: Record<string, unknown>): Session {
     current_round: 0,
     created_at: row.created_at as string,
     player_count: 0, // will be computed from session_players
+    recurring_schedule_id: (row.recurring_schedule_id as string | null) ?? null,
+    recurring_date: (row.recurring_date as string | null) ?? null,
   };
 }
 

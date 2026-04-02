@@ -70,7 +70,7 @@ interface AppStore {
   initializeData: () => Promise<void>;
 
   // Session actions
-  createSession: (session: Omit<Session, 'id' | 'created_at' | 'player_count' | 'current_round'>) => Promise<Session | null>;
+  createSession: (session: Omit<Session, 'id' | 'created_at' | 'player_count' | 'current_round' | 'recurring_schedule_id' | 'recurring_date'>) => Promise<Session | null>;
   joinSession: (sessionId: string) => Promise<void>;
   leaveSession: (sessionId: string) => Promise<void>;
   setMatchingResult: (sessionId: string, result: MatchingResult) => void;

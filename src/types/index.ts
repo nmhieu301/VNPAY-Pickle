@@ -88,6 +88,9 @@ export interface Session {
   current_round: number;
   created_at: string;
   player_count?: number;
+  // Recurring
+  recurring_schedule_id: string | null;
+  recurring_date: string | null;
 }
 
 export interface SessionPlayer {
@@ -520,4 +523,96 @@ export interface ConflictResult {
   severity: ConflictSeverity;
   message: string;
   conflictMatchId?: string;
+}
+
+// ─── Recurring Schedule Types ───
+export type RecurrenceType =
+  | 'weekly'
+  | 'monthly_date'
+  | 'monthly_weekday'
+  | 'custom_days';
+
+export type RecurringScheduleStatus = 'active' | 'paused' | 'ended';
+export type RecurringExceptionAction = 'cancel' | 'reschedule' | 'modify';
+
+export interface RecurringSchedule {
+  id: string;
+  name: string;
+  description: string | null;
+  creator_id: string;
+  creator?: Player;
+  group_id: string | null;
+  venue_id: string | null;
+  venue?: Venue;
+  num_courts: number;
+  max_players: number | null;
+  sport_mode: SportMode;
+  match_mode: MatchMode;
+  track_elo: boolean;
+  scope: SessionScope;
+  // Recurrence config
+  recurrence_type: RecurrenceType;
+  days_of_week: number[] | null;        // [2,4] = T3+T5 (1=CN,2=T2...7=T7)
+  days_of_month: number[] | null;       // [1,15]
+  monthly_week: number | null;          // tuần thứ mấy (1-5, -1=last)
+  monthly_weekday: number | null;       // thứ mấy 1-7
+  custom_interval_days: number | null;  // mỗi N ngày
+  // Time
+  start_time: string;                   // "12:00"
+  end_time: string;                     // "13:30"
+  // Range
+  starts_on: string;                    // date string
+  ends_on: string | null;
+  max_occurrences: number | null;
+  occurrence_count: number;
+  notes: string | null;
+  status: RecurringScheduleStatus;
+  paused_from: string | null;
+  paused_until: string | null;
+  created_at: string;
+  updated_at: string;
+  // Computed (from join)
+  subscriber_count?: number;
+  upcoming_session?: {
+    id: string;
+    date: string;
+    player_count: number;
+  } | null;
+}
+
+export interface RecurringSubscriber {
+  id: string;
+  schedule_id: string;
+  player_id: string;
+  player?: Player;
+  subscribed_at: string;
+}
+
+export interface RecurringException {
+  id: string;
+  schedule_id: string;
+  original_date: string;
+  action: RecurringExceptionAction;
+  new_date: string | null;
+  new_start_time: string | null;
+  new_end_time: string | null;
+  new_venue_id: string | null;
+  cancel_reason: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+// Helper: human-readable recurrence description
+export interface RecurrenceConfig {
+  type: RecurrenceType;
+  daysOfWeek?: number[];
+  daysOfMonth?: number[];
+  monthlyWeek?: number;
+  monthlyWeekday?: number;
+  customIntervalDays?: number;
+  startTime: string;
+  endTime: string;
+  startsOn: string;
+  endsOn?: string;
+  maxOccurrences?: number;
 }

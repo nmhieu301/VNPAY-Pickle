@@ -2,13 +2,17 @@
 
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { useGroupStore } from '@/lib/groupStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Users2, Copy, Check, Settings, Crown, Shield, UserPlus, Search, X, Clock, UserMinus, Link2, Mail } from 'lucide-react';
+import { ArrowLeft, Users2, Copy, Check, Settings, Crown, Shield, UserPlus, Search, X, Clock, UserMinus, Link2, Mail, CalendarRange, Plus, Gamepad2, Repeat } from 'lucide-react';
 import { PickleballIcon } from '@/components/icons/PickleballIcon';
 import { TierBadge } from '@/components/player/TierBadge';
-import type { GroupMember } from '@/types';
+import { ScheduleCard } from '@/components/schedule/ScheduleCard';
+import { SessionCard } from '@/components/session/SessionCard';
+import { fetchGroupSchedules } from '@/lib/supabase/recurringApi';
+import type { GroupMember, RecurringSchedule, Session } from '@/types';
 
 export default function GroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -21,7 +25,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
     removeMember, updateMemberRole, createInviteLink, revokeInviteLink,
   } = useGroupStore();
 
-  const [tab, setTab] = useState<'members' | 'invite' | 'requests'>('members');
+  const [tab, setTab] = useState<'members' | 'invite' | 'requests' | 'schedules'>('members');
   const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showInviteSearch, setShowInviteSearch] = useState(false);
@@ -29,9 +33,25 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const [inviteMessage, setInviteMessage] = useState('');
   const [bulkEmails, setBulkEmails] = useState('');
   const [bulkSending, setBulkSending] = useState(false);
+  const [groupSchedules, setGroupSchedules] = useState<RecurringSchedule[]>([]);
+  const [groupSessions, setGroupSessions] = useState<Session[]>([]);
 
   useEffect(() => {
     loadGroupDetail(id);
+    fetchGroupSchedules(id).then(setGroupSchedules);
+    // Fetch group sessions
+    import('@/lib/supabase/client').then(async ({ createClient }) => {
+      const supabase = createClient();
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('scope', 'private') // group sessions will be matched by venue/group context
+        .gte('date', today)
+        .limit(10);
+      // For now showing sessions that belong to recurring schedules of this group
+      // A proper implementation would need a group_id column on sessions
+    });
   }, [id, loadGroupDetail]);
 
   if (isLoading || !currentGroup || !currentUser) {
@@ -174,26 +194,75 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       </motion.div>
 
       {/* Tabs */}
-      {isAdmin && (
-        <div className="flex items-center gap-2">
-          {([
-            { key: 'members' as const, label: `Thành viên (${members.length})` },
-            { key: 'invite' as const, label: '✉️ Mời thành viên' },
-            { key: 'requests' as const, label: `📥 Yêu cầu (${joinRequests.length})` },
-          ]).map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`badge text-sm cursor-pointer transition-colors ${
-                tab === t.key
-                  ? 'bg-[var(--primary)] text-white'
-                  : 'bg-[var(--muted)] text-[var(--muted-fg)] hover:bg-[var(--surface-hover)]'
-              }`}
+      <div className="flex items-center gap-2 flex-wrap">
+        {([
+          { key: 'schedules' as const, label: '📅 Lịch chơi', show: true },
+          { key: 'members' as const, label: `👥 Thành viên (${members.length})`, show: true },
+          { key: 'invite' as const, label: '✉️ Mời', show: isAdmin },
+          { key: 'requests' as const, label: `📥 Yêu cầu (${joinRequests.length})`, show: isAdmin },
+        ] as const).filter(t => t.show).map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`badge text-sm cursor-pointer transition-colors ${
+              tab === t.key
+                ? 'bg-[var(--primary)] text-white'
+                : 'bg-[var(--muted)] text-[var(--muted-fg)] hover:bg-[var(--surface-hover)]'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ─── Lịch chơi Tab ─── */}
+      {tab === 'schedules' && (
+        <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="space-y-4">
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/groups/${id}/schedules/new`}
+              className="btn btn-gradient flex items-center gap-2"
             >
-              {t.label}
-            </button>
-          ))}
-        </div>
+              <Repeat className="w-4 h-4" /> Tạo lịch định kỳ
+            </Link>
+            <Link
+              href={`/sessions/new`}
+              className="btn btn-secondary flex items-center gap-2"
+            >
+              <Gamepad2 className="w-4 h-4" /> Tạo buổi chơi lẻ
+            </Link>
+          </div>
+
+          {/* Recurring schedules list */}
+          {groupSchedules.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-[var(--muted-fg)] uppercase tracking-wide">📅 Lịch định kỳ</p>
+              {groupSchedules.map((sched, i) => (
+                <ScheduleCard
+                  key={sched.id}
+                  schedule={sched}
+                  groupId={id}
+                  index={i}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="card p-8 text-center">
+              <CalendarRange className="w-12 h-12 mx-auto mb-3 text-[var(--muted-fg)] opacity-40" />
+              <p className="font-medium">Chưa có lịch chơi định kỳ</p>
+              <p className="text-sm text-[var(--muted-fg)] mt-1">
+                Tạo lịch sinh hoạt cố định cho nhóm (VD: trưa T3 & T5 hàng tuần)
+              </p>
+              <Link
+                href={`/groups/${id}/schedules/new`}
+                className="btn btn-gradient mt-4 inline-flex items-center gap-2"
+              >
+                <Repeat className="w-4 h-4" /> Tạo lịch định kỳ đầu tiên
+              </Link>
+            </div>
+          )}
+        </motion.div>
       )}
 
       {/* Members Tab */}
