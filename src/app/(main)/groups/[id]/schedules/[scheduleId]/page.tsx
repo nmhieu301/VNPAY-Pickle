@@ -208,31 +208,31 @@ export default function GroupScheduleDetailPage({
           )}
 
           {nextOccurrenceDate && (
-            <div className="space-y-3">
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Left: RSVP + check-in cá nhân */}
-                <div className="card p-4 space-y-4">
-                  <RsvpButtons
-                    currentStatus={attendance.myRecord?.rsvp_status ?? 'no_response'}
-                    onRsvp={attendance.handleRsvp}
-                    isSubmitting={attendance.isSubmitting}
-                    occurrenceDate={nextOccurrenceDate}
-                    error={attendance.error}
-                  />
-                  {/* Check-in (chỉ hiện khi đã RSVP 'going' hoặc 'maybe') */}
-                  {(attendance.myRecord?.rsvp_status === 'going' || attendance.myRecord?.rsvp_status === 'maybe') && (
-                    <CheckInButton
-                      isCheckedIn={attendance.myRecord?.checked_in ?? false}
-                      canCheckIn={attendance.canCheckIn}
-                      isSubmitting={attendance.isSubmitting}
-                      onCheckIn={attendance.handleSelfCheckIn}
-                      startTime={schedule.start_time.slice(0, 5)}
-                    />
-                  )}
-                </div>
+            <div className="card p-4 space-y-4">
+              {/* RSVP cá nhân */}
+              <RsvpButtons
+                currentStatus={attendance.myRecord?.rsvp_status ?? 'no_response'}
+                onRsvp={attendance.handleRsvp}
+                isSubmitting={attendance.isSubmitting}
+                occurrenceDate={nextOccurrenceDate}
+                error={attendance.error}
+              />
 
-                {/* Right: Tổng hợp RSVP */}
-                <div className="card p-4">
+              {/* Check-in (chỉ hiện khi đã RSVP going/maybe) */}
+              {(attendance.myRecord?.rsvp_status === 'going' || attendance.myRecord?.rsvp_status === 'maybe') && (
+                <CheckInButton
+                  isCheckedIn={attendance.myRecord?.checked_in ?? false}
+                  canCheckIn={attendance.canCheckIn}
+                  isSubmitting={attendance.isSubmitting}
+                  onCheckIn={attendance.handleSelfCheckIn}
+                  startTime={schedule.start_time.slice(0, 5)}
+                />
+              )}
+
+              {/* Divider + tổng hợp RSVP nhóm */}
+              {(attendance.going.length > 0 || attendance.notGoing.length > 0 ||
+                attendance.maybe.length > 0 || attendance.noResponse.length > 0) && (
+                <div className="pt-3 border-t border-[var(--border-color)]">
                   <AttendanceSummary
                     going={attendance.going}
                     notGoing={attendance.notGoing}
@@ -243,11 +243,11 @@ export default function GroupScheduleDetailPage({
                     isBeforeSession={!attendance.canCheckIn || new Date() < new Date(`${nextOccurrenceDate}T${schedule.start_time}`)}
                   />
                 </div>
-              </div>
+              )}
 
-              {/* Host panel */}
+              {/* Host check-in panel */}
               {isCreator && attendance.records.length > 0 && (
-                <div className="card p-4">
+                <div className="pt-3 border-t border-[var(--border-color)]">
                   <HostCheckInPanel
                     records={attendance.records}
                     onCheckIn={attendance.handleHostCheckIn}
