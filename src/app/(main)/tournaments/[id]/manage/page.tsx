@@ -1,16 +1,22 @@
 'use client';
 
+// ═══════════════════════════════════════════
+// VNPAY Pickle — Tournament Manage Page
+// Dashboard điều hành tổng quan (refactored)
+// ═══════════════════════════════════════════
+
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import {
+  Settings, Users, Calendar, Play as PlayIcon,
+  LayoutGrid, Loader2, Shield,
+} from 'lucide-react';
 import { useTournamentStore } from '@/lib/tournamentStore';
 import { useAppStore } from '@/lib/store';
-import { RegistrationList } from '@/components/tournament/RegistrationList';
-import { BracketTree } from '@/components/tournament/BracketTree';
-import { ScoreInput } from '@/components/tournament/ScoreInput';
-import { MatchCard } from '@/components/tournament/MatchCard';
-import { TournamentEvent, TournamentMatch } from '@/types';
-import { Play, Pause, Settings, Users, LayoutList, Activity } from 'lucide-react';
+import { useTournamentCommittee } from '@/hooks/useTournamentCommittee';
+import { DirectorDashboard } from '@/components/tournament/DirectorDashboard';
+import type { TournamentEvent } from '@/types';
 
 const CATEGORY_LABELS: Record<string, string> = {
   mens_doubles: '👨‍👨 Đôi Nam', womens_doubles: '👩‍👩 Đôi Nữ',
@@ -28,35 +34,39 @@ export default function ManagePage() {
   const matchesMap = useTournamentStore(s => s.matchesMap);
   const loadTournament = useTournamentStore(s => s.loadTournament);
   const loadEventDetail = useTournamentStore(s => s.loadEventDetail);
-  const generateBracket = useTournamentStore(s => s.generateBracket);
   const updateTournamentStatus = useTournamentStore(s => s.updateTournamentStatus);
-  const setMatchLive = useTournamentStore(s => s.setMatchLive);
 
-  const [section, setSection] = useState<'teams' | 'bracket' | 'schedule'>('teams');
   const [selectedEvent, setSelectedEvent] = useState<TournamentEvent | null>(null);
-  const [selectedMatch, setSelectedMatch] = useState<TournamentMatch | null>(null);
-  const [generating, setGenerating] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  const { isCommittee, isDirector, currentRole } = useTournamentCommittee(id, currentUser?.id ?? null);
 
   useEffect(() => { if (id && !tournament) loadTournament(id); }, [id]);
   useEffect(() => { if (events.length > 0 && !selectedEvent) setSelectedEvent(events[0]); }, [events]);
-  useEffect(() => { if (selectedEvent && !teamsMap[selectedEvent.id]) loadEventDetail(selectedEvent.id); }, [selectedEvent]);
+  useEffect(() => {
+    if (selectedEvent && !teamsMap[selectedEvent.id]) loadEventDetail(selectedEvent.id);
+  }, [selectedEvent]);
 
-  // Access check
-  if (tournament && currentUser?.id !== tournament.organizer_id && currentUser?.role !== 'admin') {
+  // Access check: organizer or committee member
+  const hasAccess = currentUser?.role === 'admin'
+    || tournament?.organizer_id === currentUser?.id
+    || isCommittee;
+
+  if (tournament && currentUser && !hasAccess) {
     router.push(`/tournaments/${id}`);
     return null;
   }
 
+  if (!tournament) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--primary)]" />
+      </div>
+    );
+  }
+
   const teams = selectedEvent ? (teamsMap[selectedEvent.id] || []) : [];
   const matches = selectedEvent ? (matchesMap[selectedEvent.id] || []) : [];
-
-  const handleGenerateBracket = async () => {
-    if (!selectedEvent) return;
-    setGenerating(true);
-    await generateBracket(selectedEvent.id, selectedEvent.format);
-    setGenerating(false);
-  };
 
   const handleStartTournament = async () => {
     setActionLoading(true);
@@ -64,30 +74,45 @@ export default function ManagePage() {
     setActionLoading(false);
   };
 
-  const handlePauseTournament = async () => {
-    setActionLoading(true);
-    await updateTournamentStatus(id, tournament?.is_paused ? 'in_progress' : 'in_progress');
-    setActionLoading(false);
-  };
-
-  if (!tournament) return <div className="skeleton h-64 rounded-xl" />;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <Link href={`/tournaments/${id}`} className="text-xs text-[var(--muted-fg)] hover:text-[var(--fg)]">← Quay lại giải</Link>
-          <h1 className="text-xl font-bold flex items-center gap-2"><Settings className="w-5 h-5 text-[var(--primary)]" /> Quản lý: {tournament.name}</h1>
+          <Link href={`/tournaments/${id}`} className="text-xs text-[var(--muted-fg)] hover:text-[var(--fg)]">
+            ← Quay lại giải
+          </Link>
+          <h1 className="text-xl font-bold flex items-center gap-2 mt-1">
+            <Settings className="w-5 h-5 text-[var(--primary)]" />
+            Quản lý: {tournament.name}
+          </h1>
+          {currentRole && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <Shield className={`w-3.5 h-3.5 ${isDirector ? 'text-[var(--primary)]' : 'text-amber-400'}`} />
+              <span className="text-xs text-[var(--muted-fg)]">
+                {isDirector ? 'Tournament Director' : 'Committee Member'}
+              </span>
+            </div>
+          )}
         </div>
+
         <div className="flex gap-2">
-          {tournament.status === 'registration' && (
-            <button onClick={handleStartTournament} disabled={actionLoading} className="btn btn-gradient flex items-center gap-1.5">
-              <Play className="w-4 h-4" /> Bắt đầu
+          {tournament.status === 'registration' && isDirector && (
+            <button
+              onClick={handleStartTournament}
+              disabled={actionLoading}
+              className="btn btn-gradient flex items-center gap-1.5"
+            >
+              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayIcon className="w-4 h-4" />}
+              Bắt đầu giải
             </button>
           )}
-          {tournament.status === 'in_progress' && (
-            <button onClick={() => updateTournamentStatus(id, 'completed')} className="btn btn-secondary text-sm">
-              ✅ Kết thúc
+          {tournament.status === 'in_progress' && isDirector && (
+            <button
+              onClick={() => updateTournamentStatus(id, 'completed')}
+              className="btn btn-secondary text-sm"
+            >
+              ✅ Kết thúc giải
             </button>
           )}
         </div>
@@ -97,95 +122,76 @@ export default function ManagePage() {
       {events.length > 1 && (
         <div className="flex gap-2 flex-wrap">
           {events.map(ev => (
-            <button key={ev.id} onClick={() => setSelectedEvent(ev)} className={`btn btn-sm ${selectedEvent?.id === ev.id ? 'btn-primary' : 'btn-ghost'}`}>
+            <button
+              key={ev.id}
+              onClick={() => setSelectedEvent(ev)}
+              className={`btn btn-sm ${selectedEvent?.id === ev.id ? 'btn-primary' : 'btn-ghost'}`}
+            >
               {CATEGORY_LABELS[ev.category] || ev.category}
             </button>
           ))}
         </div>
       )}
 
-      {/* Section nav */}
-      <div className="flex gap-1 border-b border-[var(--border-color)]">
-        {[['teams','👥 Đăng ký'],['bracket','🔲 Bracket'],['schedule','📅 Lịch đấu']].map(([val, label]) => (
-          <button key={val} onClick={() => setSection(val as typeof section)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${section === val ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--muted-fg)]'}`}>
-            {label}
-          </button>
-        ))}
+      {/* Navigation cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Link
+          href={`/tournaments/${id}/manage/players`}
+          className="card p-4 hover:border-[var(--primary)]/50 transition-colors text-center group"
+        >
+          <Users className="w-6 h-6 text-[var(--primary)] mx-auto mb-2 group-hover:scale-110 transition-transform" />
+          <p className="text-sm font-semibold">Vận động viên</p>
+          <p className="text-xs text-[var(--muted-fg)] mt-0.5">{teams.length} đã đăng ký</p>
+        </Link>
+
+        <Link
+          href={`/tournaments/${id}/manage/schedule`}
+          className="card p-4 hover:border-[var(--primary)]/50 transition-colors text-center group"
+        >
+          <Calendar className="w-6 h-6 text-amber-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+          <p className="text-sm font-semibold">Lịch thi đấu</p>
+          <p className="text-xs text-[var(--muted-fg)] mt-0.5">{matches.length} trận</p>
+        </Link>
+
+        <Link
+          href={`/tournaments/${id}/manage/scoring`}
+          className="card p-4 hover:border-red-400/50 transition-colors text-center group relative"
+        >
+          <PlayIcon className="w-6 h-6 text-red-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+          <p className="text-sm font-semibold">Ghi điểm</p>
+          <p className="text-xs text-[var(--muted-fg)] mt-0.5">Live scoring</p>
+          {matches.filter(m => m.status === 'live').length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] text-white flex items-center justify-center animate-pulse font-bold">
+              {matches.filter(m => m.status === 'live').length}
+            </span>
+          )}
+        </Link>
+
+        <Link
+          href={`/tournaments/${id}/bracket`}
+          className="card p-4 hover:border-[var(--primary)]/50 transition-colors text-center group"
+        >
+          <LayoutGrid className="w-6 h-6 text-purple-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+          <p className="text-sm font-semibold">Bracket</p>
+          <p className="text-xs text-[var(--muted-fg)] mt-0.5">Xem sơ đồ</p>
+        </Link>
       </div>
 
-      {section === 'teams' && selectedEvent && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <button onClick={handleGenerateBracket} disabled={generating} className="btn btn-gradient btn-sm">
-              {generating ? 'Đang tạo...' : '🔲 Tạo bracket'}
-            </button>
-          </div>
-          <RegistrationList event={selectedEvent} teams={teams} isOrganizer />
-        </div>
-      )}
-
-      {section === 'bracket' && selectedEvent && (
-        <div className="space-y-4">
-          <div className="card p-4">
-            <BracketTree matches={matches} teams={teams} onSelectMatch={m => setSelectedMatch(m)} />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold">Danh sách trận</h3>
-            {matches.filter(m => m.status !== 'completed').map(m => (
-              <MatchCard key={m.id} match={m} teams={teams}
-                onClick={() => { setSection('schedule'); setSelectedMatch(m); }} compact />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {section === 'schedule' && selectedEvent && (
+      {/* Director Dashboard (in_progress only) */}
+      {tournament.status === 'in_progress' && selectedEvent && (
         <div className="space-y-3">
-          {matches.map(m => (
-            <div key={m.id} className="space-y-0">
-              <MatchCard match={m} teams={teams} onClick={() => setSelectedMatch(m)} />
-            </div>
-          ))}
-          {matches.length === 0 && (
-            <div className="text-center py-8 text-[var(--muted-fg)] text-sm">
-              <p>Chưa có trận đấu nào. Hãy tạo bracket trước.</p>
-            </div>
-          )}
+          <h2 className="text-base font-bold flex items-center gap-2">
+            <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+            Dashboard điều hành — {CATEGORY_LABELS[selectedEvent.category] ?? selectedEvent.category}
+          </h2>
+          <DirectorDashboard
+            initialMatches={matches}
+            teams={teams}
+            tournament={tournament}
+            tournamentId={id}
+            onPause={isDirector ? () => updateTournamentStatus(id, 'in_progress') : undefined}
+          />
         </div>
-      )}
-
-      {/* Score modal */}
-      {selectedMatch && selectedEvent && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedMatch(null)} />
-          <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 max-w-md mx-auto">
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold">Nhập kết quả</h3>
-                <button onClick={() => setSelectedMatch(null)} className="btn btn-ghost btn-icon text-xl">✕</button>
-              </div>
-              {[
-                selectedMatch.status === 'scheduled' && (
-                  <button key="live" onClick={async () => { await setMatchLive(selectedMatch.id); setSelectedMatch(null); }} className="btn btn-secondary w-full mb-3 text-sm">
-                    ▶ Đánh dấu đang Live
-                  </button>
-                ),
-              ]}
-              {selectedMatch.status === 'completed' ? (
-                <MatchCard match={selectedMatch} teams={teams} />
-              ) : (
-                <ScoreInput
-                  match={selectedMatch}
-                  teams={teams}
-                  setsFormat={tournament.sets_format}
-                  pointsTarget={tournament.points_target}
-                  onClose={() => setSelectedMatch(null)}
-                />
-              )}
-            </div>
-          </div>
-        </>
       )}
     </div>
   );

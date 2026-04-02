@@ -87,6 +87,11 @@ export function TournamentWizard() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [refreshingVenues, setRefreshingVenues] = useState(false);
+  const [showAddVenue, setShowAddVenue] = useState(false);
+  const [newVenueName, setNewVenueName] = useState('');
+  const [newVenueAddress, setNewVenueAddress] = useState('');
+  const [addingVenue, setAddingVenue] = useState(false);
+  const [importingVenues, setImportingVenues] = useState(false);
 
   // Auto-fetch venues khi vào step 4 nếu chưa có dữ liệu
   useEffect(() => {
@@ -99,6 +104,46 @@ export function TournamentWizard() {
     setRefreshingVenues(true);
     await initializeData();
     setRefreshingVenues(false);
+  };
+
+  const handleAddVenue = async () => {
+    if (!newVenueName || !newVenueAddress) return;
+    setAddingVenue(true);
+    try {
+      const { createVenueDB } = await import('@/lib/supabase/api');
+      const venue = await createVenueDB({ name: newVenueName, address: newVenueAddress });
+      if (venue) {
+        await initializeData();
+        update({ venue_id: venue.id });
+        setShowAddVenue(false);
+        setNewVenueName('');
+        setNewVenueAddress('');
+      } else {
+        setErrors({ venue: 'Không thể thêm sân. Kiểm tra Console.' });
+      }
+    } catch (err) {
+      console.error('handleAddVenue error:', err);
+    } finally {
+      setAddingVenue(false);
+    }
+  };
+
+  const handleImportVenues = async () => {
+    setImportingVenues(true);
+    try {
+      const res = await fetch('/api/venues/import', { method: 'POST' });
+      const result = await res.json();
+      if (result.success) {
+        await initializeData();
+      } else {
+        console.error('Import venues failed:', result.error);
+        setErrors({ venue: 'Import thất bại: ' + result.error });
+      }
+    } catch (err) {
+      console.error('Import venues error:', err);
+    } finally {
+      setImportingVenues(false);
+    }
   };
 
   const update = (patch: Partial<WizardData>) => { setData(prev => ({ ...prev, ...patch })); setErrors({}); };
@@ -350,18 +395,48 @@ export function TournamentWizard() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-sm font-medium flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />Địa điểm</label>
-                <button type="button" onClick={handleRefreshVenues} disabled={refreshingVenues}
-                  className="text-xs text-[var(--primary)] flex items-center gap-1 hover:underline disabled:opacity-50">
-                  <RefreshCw className={`w-3 h-3 ${refreshingVenues ? 'animate-spin' : ''}`} />
-                  {refreshingVenues ? 'Đang tải...' : `Tải lại (${venues.length} sân)`}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={handleRefreshVenues} disabled={refreshingVenues}
+                    className="text-xs text-[var(--primary)] flex items-center gap-1 hover:underline disabled:opacity-50">
+                    <RefreshCw className={`w-3 h-3 ${refreshingVenues ? 'animate-spin' : ''}`} />
+                    {refreshingVenues ? 'Đang tải...' : `Tải lại (${venues.length})`}
+                  </button>
+                </div>
               </div>
               <select className="input" value={data.venue_id} onChange={e => update({ venue_id: e.target.value })}>
                 <option value="">-- Chọn sân (không bắt buộc) --</option>
                 {venues.map(v => <option key={v.id} value={v.id}>{v.name}{v.district ? ` — ${v.district}` : ''}</option>)}
               </select>
               {venues.length === 0 && (
-                <p className="text-xs text-amber-500 mt-1">⚠️ Không có dữ liệu sân. Nhấn "Tải lại" hoặc bỏ qua nếu chưa chọn sân.</p>
+                <div className="mt-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+                  <p className="text-amber-500 mb-2">⚠️ Chưa có dữ liệu sân trong hệ thống.</p>
+                  <button type="button" onClick={handleImportVenues} disabled={importingVenues}
+                    className="btn btn-secondary btn-sm w-full">
+                    {importingVenues ? '⏳ Đang import...' : '📥 Import 41 sân Pickleball Hà Nội'}
+                  </button>
+                </div>
+              )}
+              {!showAddVenue ? (
+                <button type="button" onClick={() => setShowAddVenue(true)}
+                  className="mt-2 text-xs text-[var(--primary)] hover:underline flex items-center gap-1">
+                  + Thêm sân mới
+                </button>
+              ) : (
+                <div className="mt-2 p-3 rounded-lg border border-[var(--border-color)] bg-[var(--surface)] space-y-2">
+                  <p className="text-sm font-medium">🏟️ Thêm sân mới</p>
+                  <input type="text" placeholder="Tên sân *" className="input" value={newVenueName}
+                    onChange={e => setNewVenueName(e.target.value)} />
+                  <input type="text" placeholder="Địa chỉ *" className="input" value={newVenueAddress}
+                    onChange={e => setNewVenueAddress(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button type="button" onClick={handleAddVenue} disabled={addingVenue || !newVenueName || !newVenueAddress}
+                      className="btn btn-gradient btn-sm flex-1">
+                      {addingVenue ? '⏳ Đang thêm...' : '✅ Lưu sân'}
+                    </button>
+                    <button type="button" onClick={() => { setShowAddVenue(false); setNewVenueName(''); setNewVenueAddress(''); }}
+                      className="btn btn-secondary btn-sm">Hủy</button>
+                  </div>
+                </div>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">

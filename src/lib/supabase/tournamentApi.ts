@@ -114,6 +114,9 @@ function mapMatch(row: Record<string, unknown>): TournamentMatch {
     score_confirmed_by_b: row.score_confirmed_by_b as boolean ?? false,
     started_at: row.started_at as string | null,
     completed_at: row.completed_at as string | null,
+    // Phase 3: Live scoring lock
+    scoring_locked_by: row.scoring_locked_by as string | null ?? null,
+    scoring_locked_at: row.scoring_locked_at as string | null ?? null,
   };
 }
 

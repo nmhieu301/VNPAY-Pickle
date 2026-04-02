@@ -282,6 +282,9 @@ export interface TournamentMatch {
   score_confirmed_by_b: boolean;
   started_at: string | null;
   completed_at: string | null;
+  // Phase 3: Live scoring lock
+  scoring_locked_by: string | null;
+  scoring_locked_at: string | null;
 }
 
 export interface TournamentStanding {
@@ -438,4 +441,83 @@ export interface GroupInviteLink {
   requires_approval: boolean;
   is_active: boolean;
   created_at: string;
+}
+
+// ─── Tournament Committee Types ───
+export type CommitteeRole = 'director' | 'committee';
+
+export interface TournamentCommitteeMember {
+  id: string;
+  tournament_id: string;
+  player_id: string;
+  player?: Player;
+  role: CommitteeRole;
+  added_at: string;
+}
+
+// ─── Guest Player Types ───
+export type GuestTier = 'Beginner' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+
+export interface GuestPlayer {
+  id: string;
+  tournament_id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  company: string;
+  estimated_tier: GuestTier;
+  linked_player_id: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+// ─── Score Log Types ───
+export type ScoreLogAction = 'point' | 'undo' | 'timeout' | 'side_out';
+
+export interface ScoreLog {
+  id: string;
+  match_id: string;
+  set_number: number;
+  team: 'A' | 'B';
+  score_a: number;
+  score_b: number;
+  action: ScoreLogAction;
+  scored_by: string | null;
+  created_at: string;
+}
+
+// ─── Schedule Change Log ───
+export interface ScheduleChangeLog {
+  id: string;
+  match_id: string;
+  changed_by: string;
+  old_court: number | null;
+  new_court: number | null;
+  old_time: string | null;
+  new_time: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
+// ─── Bulk Add Types ───
+export type FuzzyMatchStatus = 'matched' | 'ambiguous' | 'not_found';
+
+export interface FuzzyMatchResult {
+  rawText: string;
+  status: FuzzyMatchStatus;
+  candidates: Player[];
+  selectedPlayer: Player | null;
+  partnerText?: string;
+  partnerStatus?: FuzzyMatchStatus;
+  partnerCandidates?: Player[];
+  selectedPartner?: Player | null;
+}
+
+// ─── Conflict Check Result ───
+export type ConflictSeverity = 'error' | 'warning';
+
+export interface ConflictResult {
+  severity: ConflictSeverity;
+  message: string;
+  conflictMatchId?: string;
 }
