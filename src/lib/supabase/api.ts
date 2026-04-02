@@ -242,9 +242,14 @@ export async function createPlayer(email: string): Promise<Player | null> {
   const fullName = nameParts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   const nickname = nameParts[0];
 
+  // Get the auth user ID so player.id matches auth.uid() for RLS policies
+  const { data: { user } } = await supabase.auth.getUser();
+  const authId = user?.id;
+
   const { data, error } = await supabase
     .from('players')
     .insert({
+      ...(authId ? { id: authId } : {}), // Use auth UUID if available
       email,
       full_name: fullName,
       nickname,
