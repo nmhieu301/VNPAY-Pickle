@@ -31,6 +31,7 @@ export async function fetchGroupSchedules(groupId: string): Promise<RecurringSch
   return (data ?? []) as RecurringSchedule[];
 }
 
+
 export async function fetchMyRecurringSchedules(playerId: string): Promise<RecurringSchedule[]> {
   const supabase = createClient();
   // Schedules I created OR subscribed to
@@ -68,12 +69,23 @@ export async function createRecurringSchedule(
   params: Omit<RecurringSchedule, 'id' | 'creator' | 'venue' | 'occurrence_count' | 'created_at' | 'updated_at' | 'subscriber_count' | 'upcoming_session'>
 ): Promise<RecurringSchedule | null> {
   const supabase = createClient();
+
+  // Verify authenticated
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error('createRecurringSchedule: not authenticated');
+    return null;
+  }
+
   const { data, error } = await supabase
     .from('recurring_schedules')
     .insert(params)
     .select('*')
     .single();
-  if (error) { console.error('createRecurringSchedule:', error); return null; }
+  if (error) {
+    console.error('createRecurringSchedule error:', JSON.stringify(error));
+    return null;
+  }
   return data as RecurringSchedule;
 }
 

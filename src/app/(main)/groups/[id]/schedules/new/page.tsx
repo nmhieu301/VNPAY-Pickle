@@ -27,6 +27,7 @@ export default function NewGroupSchedulePage({
   const { currentUser, venues } = useAppStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAddVenue, setShowAddVenue] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -74,7 +75,7 @@ export default function NewGroupSchedulePage({
       sport_mode: form.sport_mode,
       match_mode: form.match_mode,
       track_elo: form.track_elo,
-      scope: 'private' as const, // group sessions — locked to group members via RLS
+      scope: 'private' as const,
       recurrence_type: recurrence.type,
       days_of_week: recurrence.type === 'weekly' ? (recurrence.daysOfWeek ?? null) : null,
       days_of_month: recurrence.type === 'monthly_date' ? (recurrence.daysOfMonth ?? null) : null,
@@ -95,6 +96,7 @@ export default function NewGroupSchedulePage({
     if (schedule) {
       router.push(`/groups/${groupId}/schedules/${schedule.id}`);
     } else {
+      setErrorMsg('Tạo lịch thất bại. Vui lòng chạy recurring_migration.sql trên Supabase trước, hoặc thử lại.');
       setIsSubmitting(false);
     }
   };
@@ -118,6 +120,13 @@ export default function NewGroupSchedulePage({
             <p className="text-sm text-[var(--muted-fg)]">Lịch sinh hoạt cố định cho nhóm</p>
           </div>
         </div>
+
+        {/* Error toast */}
+        {errorMsg && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-400">
+            ⚠️ {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Tên lịch */}
