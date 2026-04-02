@@ -33,9 +33,9 @@ export default function ProfilePage() {
     .sort((a, b) => b.elo_rating - a.elo_rating)
     .findIndex(p => p.id === currentUser.id) + 1;
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
+  const handleLogout = async () => {
+    await logout();
+    // logout() already redirects via window.location.href = '/'
   };
 
   const startEdit = () => {

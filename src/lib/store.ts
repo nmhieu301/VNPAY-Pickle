@@ -144,12 +144,25 @@ export const useAppStore = create<AppStore>()(
       logout: async () => {
         const supabase = createClient();
         await supabase.auth.signOut();
+        // Clear all state (including persisted cache)
         set({
           currentUser: null,
           isAuthenticated: false,
           authEmail: null,
           isInitialized: false,
+          sessions: [],
+          players: [],
+          departments: [],
+          venues: [],
+          sessionPlayers: {},
+          checkedInPlayers: {},
+          notifications: [],
+          matchingResults: {},
         });
+        // Hard redirect ensures no stale React state
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       },
       
       isAdmin: () => get().currentUser?.role === 'admin',
