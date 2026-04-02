@@ -70,16 +70,21 @@ export async function createRecurringSchedule(
 ): Promise<RecurringSchedule | null> {
   const supabase = createClient();
 
-  // Verify authenticated
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    console.error('createRecurringSchedule: not authenticated');
+  // Lấy auth.uid() thực tế — PHẢI dùng cái này cho creator_id để RLS pass
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    console.error('createRecurringSchedule: not authenticated', authError);
     return null;
   }
 
+  // Override creator_id bằng auth.uid() thực tế (tránh mismatch với players.id)
+  const payload = { ...params, creator_id: user.id };
+
+  console.log('createRecurringSchedule payload creator_id:', user.id);
+
   const { data, error } = await supabase
     .from('recurring_schedules')
-    .insert(params)
+    .insert(payload)
     .select('*')
     .single();
   if (error) {
