@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AuthChangeEvent, Session as SupabaseSession } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session as SupabaseSession, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Player, Session, Department, Venue, Notification, MatchingResult, Group } from '@/types';
 import { getClient } from '@/lib/supabase/client';
 import {
@@ -481,7 +481,7 @@ export const useAppStore = create<AppStore>()(
               table: 'session_players',
               filter: `session_id=eq.${sessionId}`,
             },
-            (payload) => {
+            (payload: RealtimePostgresChangesPayload<{ player_id: string; session_id: string }>) => {
               const newPlayerId = (payload.new as { player_id: string }).player_id;
               set(state => {
                 const current = state.sessionPlayers[sessionId] || [];
@@ -506,7 +506,7 @@ export const useAppStore = create<AppStore>()(
               table: 'session_players',
               filter: `session_id=eq.${sessionId}`,
             },
-            (payload) => {
+            (payload: RealtimePostgresChangesPayload<{ player_id: string; session_id: string }>) => {
               const removedPlayerId = (payload.old as { player_id: string }).player_id;
               set(state => {
                 const updated = (state.sessionPlayers[sessionId] || [])
