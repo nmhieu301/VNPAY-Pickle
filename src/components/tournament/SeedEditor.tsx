@@ -118,11 +118,11 @@ export function SeedEditor({ teams, onUpdate }: SeedEditorProps) {
                         <span
                           className="px-2 py-0.5 rounded text-xs font-semibold"
                           style={{
-                            background: (TIER_COLORS[team.player1.tier] ?? '#888') + '22',
-                            color: TIER_COLORS[team.player1.tier] ?? '#888',
+                            background: (TIER_COLORS[String(team.player1.tier)] ?? '#888') + '22',
+                            color: TIER_COLORS[String(team.player1.tier)] ?? '#888',
                           }}
                         >
-                          {team.player1.tier.toUpperCase()}
+                          {String(team.player1.tier).toUpperCase()}
                         </span>
                       )}
 
