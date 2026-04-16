@@ -251,8 +251,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
 
               {/* Summary */}
               <div className="text-center text-sm text-[var(--muted-fg)]">
-                Tổng chênh lệch ELO: <span className="font-mono font-bold">{matchResult.totalEloDiff}</span>
-                {matchResult.totalEloDiff <= 50 * matchResult.courts.length ? ' ✅' : ' ⚠️'}
+                Tổng chênh lệch Tier: <span className="font-mono font-bold">{matchResult.totalTierDiff}</span>
+                {matchResult.totalTierDiff <= matchResult.courts.length ? ' ✅' : ' ⚠️'}
               </div>
             </div>
           )}

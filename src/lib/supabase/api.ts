@@ -389,15 +389,21 @@ export async function updatePlayerDB(playerId: string, updates: Partial<Player> 
 }
 
 export async function deleteSessionDB(sessionId: string): Promise<boolean> {
-  // Delete session_players first (handled by cascade usually, but being safe)
+  // Delete session_players first (cascade may not be configured)
   await supabase.from('session_players').delete().eq('session_id', sessionId);
-  
-  const { error } = await supabase
+
+  const { error, data } = await supabase
     .from('sessions')
     .delete()
-    .eq('id', sessionId);
+    .eq('id', sessionId)
+    .select('id');
 
   if (error) { console.error('deleteSessionDB error:', error); return false; }
+  // data is empty array if RLS blocked the delete without error
+  if (!data || data.length === 0) {
+    console.error('deleteSessionDB: no rows deleted — check RLS policy on sessions table');
+    return false;
+  }
   return true;
 }
 
