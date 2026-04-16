@@ -4,6 +4,7 @@ import { Player } from '@/types';
 import { TierBadge } from './TierBadge';
 import { useAppStore } from '@/lib/store';
 import { UserCircle } from 'lucide-react';
+import { getTierConfig } from '@/lib/constants/tiers';
 
 interface PlayerCardProps {
   player: Player;
@@ -18,6 +19,7 @@ export function PlayerCard({ player, compact = false, showDepartment = true, onC
   const winRate = player.total_matches > 0
     ? Math.round((player.total_wins / player.total_matches) * 100)
     : 0;
+  const tierCfg = getTierConfig(player.tier);
 
   if (compact) {
     return (
@@ -38,7 +40,7 @@ export function PlayerCard({ player, compact = false, showDepartment = true, onC
             <p className="text-xs text-[var(--muted-fg)] truncate">{dept.name}</p>
           )}
         </div>
-        <TierBadge elo={player.elo_rating} size="sm" />
+        <TierBadge tier={player.tier} size="sm" />
       </div>
     );
   }
@@ -59,7 +61,7 @@ export function PlayerCard({ player, compact = false, showDepartment = true, onC
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold truncate">{player.nickname || player.full_name}</h3>
-            <TierBadge elo={player.elo_rating} size="sm" />
+            <TierBadge tier={player.tier} size="sm" />
           </div>
           <p className="text-sm text-[var(--muted-fg)]">{player.full_name}</p>
           {showDepartment && dept && (
@@ -70,8 +72,8 @@ export function PlayerCard({ player, compact = false, showDepartment = true, onC
 
       <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--border-color)]">
         <div className="text-center">
-          <p className="font-mono font-bold text-lg" style={{ color: '#005BAA' }}>{player.elo_rating}</p>
-          <p className="text-xs text-[var(--muted-fg)]">ELO</p>
+          <p className="text-2xl">{tierCfg.icon}</p>
+          <p className="text-xs text-[var(--muted-fg)]">{tierCfg.sublabel}</p>
         </div>
         <div className="text-center">
           <p className="font-mono font-bold text-lg">{player.total_matches}</p>

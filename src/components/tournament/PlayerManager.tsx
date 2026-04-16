@@ -111,7 +111,7 @@ function AddSinglePlayerForm({
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium">{selected.full_name}</p>
-              <p className="text-xs text-[var(--muted-fg)]">ELO {selected.elo_rating}</p>
+              <p className="text-xs text-[var(--muted-fg)]">Tier {selected.tier ?? 0}</p>
             </div>
             <button onClick={() => setSelected(null)} className="text-xs text-[var(--muted-fg)] hover:text-red-400">✕</button>
           </div>
@@ -139,7 +139,7 @@ function AddSinglePlayerForm({
                     </div>
                     <div>
                       <p className="text-sm font-medium">{p.full_name}</p>
-                      <p className="text-xs text-[var(--muted-fg)]">{p.department?.name ?? p.email} — ELO {p.elo_rating}</p>
+                      <p className="text-xs text-[var(--muted-fg)]">{p.department?.name ?? p.email} — Tier {p.tier ?? 0}</p>
                     </div>
                   </button>
                 ))}
@@ -160,7 +160,7 @@ function AddSinglePlayerForm({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium">{partner.full_name}</p>
-                <p className="text-xs text-[var(--muted-fg)]">ELO {partner.elo_rating}</p>
+                <p className="text-xs text-[var(--muted-fg)]">Tier {partner.tier ?? 0}</p>
               </div>
               <button onClick={() => setPartner(null)} className="text-xs text-[var(--muted-fg)] hover:text-red-400">✕</button>
             </div>

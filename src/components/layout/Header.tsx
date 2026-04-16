@@ -197,7 +197,7 @@ export function Header() {
               </div>
               <div className="hidden lg:block">
                 <p className="text-sm font-medium leading-tight">{currentUser.nickname || currentUser.full_name}</p>
-                <TierBadge elo={currentUser.elo_rating} size="sm" />
+                <TierBadge tier={currentUser.tier} size="sm" />
               </div>
             </Link>
           )}

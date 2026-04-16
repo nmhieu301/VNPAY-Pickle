@@ -298,7 +298,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                     <p className="text-xs text-[var(--muted-fg)]">{player.email}</p>
                   </div>
-                  <TierBadge elo={player.elo_rating} size="sm" showLabel={false} />
+                  <TierBadge tier={player.tier} size="sm" showLabel={false} />
 
                   {/* Actions */}
                   {isAdmin && member.role === 'member' && (

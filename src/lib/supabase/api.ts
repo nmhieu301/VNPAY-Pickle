@@ -5,14 +5,11 @@
 
 import { getClient } from './client';
 import type { Player, Session, Department, Venue, SessionPlayer, Group } from '@/types';
-import { calculateTier } from '@/lib/algorithms/elo';
 
 const supabase = getClient();
 
 // ─── Helper: Map DB row → Player type ───
 function mapPlayer(row: Record<string, unknown>): Player {
-  const elo = row.elo_rating as number;
-
   return {
     id: row.id as string,
     email: row.email as string,
@@ -25,16 +22,15 @@ function mapPlayer(row: Record<string, unknown>): Player {
     position_preference: (row.preferred_position as Player['position_preference']) || 'flexible',
     experience: mapExperience(row.experience_level as string),
     bio: row.bio as string | null,
-    elo_rating: elo,
-    tier: calculateTier(elo) as Player['tier'],
-    // Read role from DB — run SQL first if needed: UPDATE players SET role = 'admin' WHERE email = 'hieunm2@vnpay.vn';
+    // tier is an integer 0–4 set by admin; default 0
+    tier: typeof row.tier === 'number' ? row.tier : 0,
     role: (row.role as Player['role']) || 'player',
-    is_active: row.is_active as boolean ?? true,
-    total_matches: row.total_matches as number ?? 0,
-    total_wins: row.wins as number ?? 0,
-    win_streak: row.current_streak as number ?? 0,
-    best_win_streak: row.best_streak as number ?? 0,
-    created_at: row.joined_at as string ?? row.created_at as string,
+    is_active: (row.is_active as boolean) ?? true,
+    total_matches: (row.total_matches as number) ?? 0,
+    total_wins: (row.wins as number) ?? 0,
+    win_streak: (row.current_streak as number) ?? 0,
+    best_win_streak: (row.best_streak as number) ?? 0,
+    created_at: (row.joined_at as string) ?? (row.created_at as string),
     last_played_at: row.last_played_at as string | null,
   };
 }
@@ -131,7 +127,7 @@ export async function fetchPlayers(): Promise<Player[]> {
     .from('players')
     .select('*')
     .eq('is_active', true)
-    .order('elo_rating', { ascending: false });
+    .order('tier', { ascending: false });
 
   if (error) { console.error('fetchPlayers error:', error); return []; }
   return (data || []).map(mapPlayer);
@@ -260,11 +256,11 @@ export async function createPlayer(email: string): Promise<Player | null> {
   const { data, error } = await supabase
     .from('players')
     .insert({
-      ...(authId ? { id: authId } : {}), // Use auth UUID if available
+      ...(authId ? { id: authId } : {}),
       email,
       full_name: fullName,
       nickname,
-      elo_rating: 1200,
+      tier: 0,
       total_matches: 0,
       wins: 0,
       losses: 0,
@@ -363,7 +359,7 @@ export async function updatePlayerDB(playerId: string, updates: Partial<Player> 
   const dbUpdates: Record<string, unknown> = {};
   if (updates.full_name !== undefined) dbUpdates.full_name = updates.full_name;
   if (updates.nickname !== undefined) dbUpdates.nickname = updates.nickname;
-  if (updates.elo_rating !== undefined) dbUpdates.elo_rating = updates.elo_rating;
+  if (updates.tier !== undefined) dbUpdates.tier = updates.tier;
   if (updates.is_active !== undefined) dbUpdates.is_active = updates.is_active;
   if (updates.role !== undefined) dbUpdates.role = updates.role;
   // Profile fields — REVERSE map frontend values → DB column values
@@ -421,7 +417,7 @@ export async function adminCreatePlayerDB(data: {
       email: data.email,
       full_name: data.full_name,
       nickname: data.nickname || data.email.split('@')[0],
-      elo_rating: data.elo_rating || 1200,
+      tier: 0,
       total_matches: 0,
       wins: 0,
       losses: 0,

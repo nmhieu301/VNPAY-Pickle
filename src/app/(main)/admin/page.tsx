@@ -26,20 +26,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TierBadge } from '@/components/player/TierBadge';
 import { fetchPlayersAdmin, fetchGroupsAdmin } from '@/lib/supabase/api';
 import { Player, Group } from '@/types';
-import { calculateTier } from '@/lib/algorithms/elo';
+import { TIERS } from '@/lib/constants/tiers';
 
 type AdminTab = 'players' | 'groups' | 'sessions' | 'system';
-
-// ─── Tier Select Data ───
-const TIER_OPTIONS = [
-  { value: 'beginner',   label: 'Beginner',   minElo: 0,    maxElo: 999,  color: 'bg-gray-100 text-gray-600' },
-  { value: 'bronze',     label: 'Bronze',     minElo: 1000, maxElo: 1199, color: 'bg-amber-100 text-amber-700' },
-  { value: 'silver',     label: 'Silver',     minElo: 1200, maxElo: 1399, color: 'bg-slate-100 text-slate-600' },
-  { value: 'gold',       label: 'Gold',       minElo: 1400, maxElo: 1599, color: 'bg-yellow-100 text-yellow-700' },
-  { value: 'platinum',   label: 'Platinum',   minElo: 1600, maxElo: 1799, color: 'bg-cyan-100 text-cyan-700' },
-  { value: 'diamond',    label: 'Diamond',    minElo: 1800, maxElo: 1999, color: 'bg-blue-100 text-blue-600' },
-  { value: 'challenger', label: 'Challenger', minElo: 2000, maxElo: 3000, color: 'bg-purple-100 text-purple-600' },
-];
 
 export default function AdminPage() {
   const router = useRouter();
@@ -60,7 +49,7 @@ export default function AdminPage() {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Player>>({});
   const [showCreatePlayer, setShowCreatePlayer] = useState(false);
-  const [createPlayerForm, setCreatePlayerForm] = useState({ email: '', full_name: '', nickname: '', elo_rating: 1200 });
+  const [createPlayerForm, setCreatePlayerForm] = useState({ email: '', full_name: '', nickname: '', tier: 0 });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
   // Group modals
@@ -118,7 +107,7 @@ export default function AdminPage() {
     setEditForm({
       full_name: player.full_name,
       nickname: player.nickname || '',
-      elo_rating: player.elo_rating,
+      tier: player.tier,
       role: player.role,
       is_active: player.is_active,
     });
@@ -144,7 +133,7 @@ export default function AdminPage() {
     const player = await adminCreatePlayer(createPlayerForm);
     if (player) {
       setShowCreatePlayer(false);
-      setCreatePlayerForm({ email: '', full_name: '', nickname: '', elo_rating: 1200 });
+      setCreatePlayerForm({ email: '', full_name: '', nickname: '', tier: 0 });
       showFeedback('success', `Đã tạo người chơi ${player.full_name}`);
       loadAllPlayers();
     } else {
@@ -221,9 +210,6 @@ export default function AdminPage() {
     }
   };
 
-  // ─── Tier from ELO ───
-  const getTierFromElo = (elo: number) => TIER_OPTIONS.find(t => elo >= t.minElo && elo <= t.maxElo) || TIER_OPTIONS[0];
-
   if (!isAdmin()) return null;
 
   const tabs: { key: AdminTab; label: string; icon: React.ReactNode }[] = [
@@ -290,7 +276,7 @@ export default function AdminPage() {
                 <thead>
                   <tr className="border-b border-[var(--border-color)] bg-[var(--muted)]/50">
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">Người chơi</th>
-                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">ELO / Tier</th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider">Tier</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider hidden md:table-cell">Vai trò</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider hidden md:table-cell">Trạng thái</th>
                     <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-right">Hành động</th>
@@ -315,10 +301,7 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-mono font-bold">{player.elo_rating}</span>
-                          <TierBadge elo={player.elo_rating} size="sm" />
-                        </div>
+                        <TierBadge tier={player.tier} size="sm" showSublabel />
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -478,9 +461,9 @@ export default function AdminPage() {
             <div className="card p-6 flex flex-col items-center text-center gap-2">
               <TrendingUp className="w-10 h-10 text-vnpay-red" />
               <p className="text-3xl font-display font-bold">
-                {allPlayers.length > 0 ? Math.round(allPlayers.reduce((acc, p) => acc + p.elo_rating, 0) / allPlayers.length) : 0}
+                {allPlayers.length > 0 ? (allPlayers.reduce((acc, p) => acc + (p.tier ?? 0), 0) / allPlayers.length).toFixed(1) : '0.0'}
               </p>
-              <p className="text-[var(--muted-fg)]">ELO Trung bình</p>
+              <p className="text-[var(--muted-fg)]">Tier Trung bình</p>
             </div>
             <div className="card p-6 flex flex-col items-center text-center gap-2">
               <UsersRound className="w-10 h-10 text-emerald-500" />
@@ -517,9 +500,21 @@ export default function AdminPage() {
                   <input className="input" placeholder="Optional" value={createPlayerForm.nickname} onChange={e => setCreatePlayerForm({...createPlayerForm, nickname: e.target.value})} />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">ELO Ban đầu</label>
-                  <input type="number" className="input" value={createPlayerForm.elo_rating} onChange={e => setCreatePlayerForm({...createPlayerForm, elo_rating: parseInt(e.target.value) || 1200})} />
-                  <p className="text-xs text-[var(--muted-fg)] mt-1">Tier: {getTierFromElo(createPlayerForm.elo_rating).label}</p>
+                  <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">Tier ban đầu</label>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {TIERS.map(t => (
+                      <button key={t.level} type="button"
+                        onClick={() => setCreatePlayerForm({...createPlayerForm, tier: t.level})}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                          createPlayerForm.tier === t.level
+                            ? `${t.bgColor} ${t.textColor} ring-2 ring-[var(--primary)] border-transparent`
+                            : 'border-[var(--border-color)] hover:bg-[var(--muted)]'
+                        }`}
+                      >
+                        {t.icon} {t.level}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button onClick={() => setShowCreatePlayer(false)} className="btn btn-secondary flex-1">Hủy</button>
@@ -551,27 +546,22 @@ export default function AdminPage() {
                   <input className="input" value={editForm.nickname || ''} onChange={e => setEditForm({...editForm, nickname: e.target.value})} />
                 </div>
                 <div>
-                  <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">ELO Rating</label>
-                  <input type="number" className="input" value={editForm.elo_rating} onChange={e => setEditForm({...editForm, elo_rating: parseInt(e.target.value) || 0})} />
-                </div>
-                <div>
-                  <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">Chọn Tier (auto-set ELO)</label>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {TIER_OPTIONS.map(tier => (
-                      <button
-                        key={tier.value}
-                        type="button"
-                        onClick={() => setEditForm({...editForm, elo_rating: tier.minElo + Math.floor((tier.maxElo - tier.minElo) / 2)})}
-                        className={`px-2 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all ${
-                          getTierFromElo(editForm.elo_rating || 0).value === tier.value
-                            ? `${tier.color} ring-2 ring-[var(--primary)] border-transparent`
+                  <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">Tier</label>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {TIERS.map(t => (
+                      <button key={t.level} type="button"
+                        onClick={() => setEditForm({...editForm, tier: t.level})}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                          (editForm.tier ?? 0) === t.level
+                            ? `${t.bgColor} ${t.textColor} ring-2 ring-[var(--primary)] border-transparent`
                             : 'border-[var(--border-color)] hover:bg-[var(--muted)]'
                         }`}
                       >
-                        {tier.label}
+                        {t.icon} {t.level}
                       </button>
                     ))}
                   </div>
+                  <p className="text-xs text-[var(--muted-fg)] mt-1">{TIERS[editForm.tier ?? 0]?.sublabel}</p>
                 </div>
                 <div>
                   <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">Vai trò</label>

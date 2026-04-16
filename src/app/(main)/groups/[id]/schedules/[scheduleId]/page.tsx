@@ -304,7 +304,7 @@ export default function GroupScheduleDetailPage({
                     {sub.player?.nickname || sub.player?.full_name || 'Ẩn danh'}
                   </p>
                 </div>
-                {sub.player && <TierBadge elo={sub.player.elo_rating} size="sm" showLabel={false} />}
+                {sub.player && <TierBadge tier={sub.player.tier} size="sm" showLabel={false} />}
               </div>
             ))}
           </div>

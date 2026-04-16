@@ -46,8 +46,8 @@ export function BulkAddModal({ eventId, allPlayers, onSuccess, onClose }: BulkAd
       player1Id: r.selectedPlayer!.id,
       player2Id: r.selectedPartner?.id,
       avgElo: r.selectedPlayer && r.selectedPartner
-        ? ((r.selectedPlayer.elo_rating ?? 1000) + (r.selectedPartner.elo_rating ?? 1000)) / 2
-        : r.selectedPlayer?.elo_rating ?? 1000,
+        ? ((r.selectedPlayer.tier ?? 0) + (r.selectedPartner.tier ?? 0)) / 2
+        : r.selectedPlayer?.tier ?? 0,
     }));
     const count = await bulkAddTeams(eventId, pairs);
     setLoading(false);
@@ -127,7 +127,7 @@ export function BulkAddModal({ eventId, allPlayers, onSuccess, onClose }: BulkAd
                     <div className="ml-6 text-xs text-green-400">
                       ✓ {r.selectedPlayer.full_name}
                       {r.selectedPlayer.department?.name && ` (${r.selectedPlayer.department.name})`}
-                      {' — ELO '}{r.selectedPlayer.elo_rating}
+                      {' — Tier '}{r.selectedPlayer.tier ?? 0}
                     </div>
                   )}
 

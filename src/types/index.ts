@@ -6,6 +6,9 @@ export type PlayerRole = 'player' | 'organizer' | 'admin';
 export type HandPreference = 'left' | 'right';
 export type PositionPreference = 'forehand' | 'backhand' | 'flexible';
 export type ExperienceLevel = 'beginner' | 'under_6m' | '6_12m' | '1_2y' | 'over_2y';
+/** 0 = Tập sự · 1 = Trung cấp · 2 = Khá · 3 = Giỏi · 4 = Xuất sắc */
+export type TierLevel = 0 | 1 | 2 | 3 | 4;
+/** @deprecated — kept for legacy DB references, use TierLevel instead */
 export type TierName = 'beginner' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'challenger';
 
 export interface Player {
@@ -21,8 +24,7 @@ export interface Player {
   position_preference: PositionPreference;
   experience: ExperienceLevel;
   bio: string | null;
-  elo_rating: number;
-  tier: TierName;
+  tier: number; // 0–4, set by admin
   role: PlayerRole;
   is_active: boolean;
   total_matches: number;
@@ -364,15 +366,15 @@ export interface CourtAssignment {
   court_number: number;
   team_a: Player[];
   team_b: Player[];
-  team_a_elo: number;
-  team_b_elo: number;
-  elo_diff: number;
+  team_a_tier: number; // sum of tier values in team A
+  team_b_tier: number; // sum of tier values in team B
+  tier_diff: number;   // |team_a_tier - team_b_tier|
 }
 
 export interface MatchingResult {
   courts: CourtAssignment[];
   waiting: Player[];
-  totalEloDiff: number;
+  totalTierDiff: number;
 }
 
 // ─── Group Types ───

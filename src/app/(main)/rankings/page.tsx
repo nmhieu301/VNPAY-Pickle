@@ -29,21 +29,21 @@ export default function RankingsPage() {
       filtered = filtered.filter(p => p.department_id === deptFilter);
     }
 
-    return filtered.sort((a, b) => b.elo_rating - a.elo_rating);
+    return filtered.sort((a, b) => (b.tier ?? 0) - (a.tier ?? 0));
   }, [players, search, deptFilter]);
 
   // Department ranking
   const deptRankings = useMemo(() => {
     return departments.map(dept => {
       const deptPlayers = players.filter(p => p.department_id === dept.id && p.is_active);
-      const avgElo = deptPlayers.length > 0
-        ? Math.round(deptPlayers.reduce((sum, p) => sum + p.elo_rating, 0) / deptPlayers.length)
+      const avgTier = deptPlayers.length > 0
+        ? Math.round(deptPlayers.reduce((sum, p) => sum + (p.tier ?? 0), 0) / deptPlayers.length * 10) / 10
         : 0;
       const totalMatches = deptPlayers.reduce((sum, p) => sum + p.total_matches, 0);
       const totalWins = deptPlayers.reduce((sum, p) => sum + p.total_wins, 0);
       const winRate = totalMatches > 0 ? Math.round((totalWins / totalMatches) * 100) : 0;
-      return { ...dept, playerCount: deptPlayers.length, avgElo, totalMatches, winRate };
-    }).filter(d => d.playerCount > 0).sort((a, b) => b.avgElo - a.avgElo);
+      return { ...dept, playerCount: deptPlayers.length, avgTier, totalMatches, winRate };
+    }).filter(d => d.playerCount > 0).sort((a, b) => b.avgTier - a.avgTier);
   }, [departments, players]);
 
   return (
@@ -99,11 +99,10 @@ export default function RankingsPage() {
           {/* Leaderboard */}
           <div className="card overflow-hidden">
             {/* Header */}
-            <div className="hidden md:grid grid-cols-[3rem_1fr_8rem_5rem_5rem_4rem_5rem] gap-2 px-4 py-2 bg-[var(--muted)] text-xs font-semibold text-[var(--muted-fg)] uppercase">
+            <div className="hidden md:grid grid-cols-[3rem_1fr_8rem_6rem_4rem_5rem] gap-2 px-4 py-2 bg-[var(--muted)] text-xs font-semibold text-[var(--muted-fg)] uppercase">
               <span>#</span>
               <span>Player</span>
               <span>Phòng ban</span>
-              <span className="text-center">ELO</span>
               <span className="text-center">Tier</span>
               <span className="text-center">Trận</span>
               <span className="text-center">Win%</span>
@@ -121,7 +120,7 @@ export default function RankingsPage() {
                 return (
                   <div
                     key={player.id}
-                    className="grid grid-cols-[3rem_1fr_auto] md:grid-cols-[3rem_1fr_8rem_5rem_5rem_4rem_5rem] gap-2 px-4 py-3 items-center hover:bg-[var(--muted)] transition-colors"
+                    className="grid grid-cols-[3rem_1fr_auto] md:grid-cols-[3rem_1fr_8rem_6rem_4rem_5rem] gap-2 px-4 py-3 items-center hover:bg-[var(--muted)] transition-colors"
                   >
                     {/* Rank */}
                     <span className={`text-center font-bold font-mono ${
@@ -144,16 +143,14 @@ export default function RankingsPage() {
                       </div>
                     </div>
 
-                    {/* Mobile: ELO + Tier */}
+                    {/* Mobile: Tier badge */}
                     <div className="flex items-center gap-2 md:hidden">
-                      <span className="font-mono font-bold text-sm">{player.elo_rating}</span>
-                      <TierBadge elo={player.elo_rating} size="sm" showLabel={false} />
+                      <TierBadge tier={player.tier} size="sm" />
                     </div>
 
                     {/* Desktop columns */}
                     <span className="text-sm text-[var(--muted-fg)] hidden md:block truncate">{dept?.name || '-'}</span>
-                    <span className="font-mono font-bold text-sm text-center hidden md:block">{player.elo_rating}</span>
-                    <span className="text-center hidden md:flex justify-center"><TierBadge elo={player.elo_rating} size="sm" /></span>
+                    <span className="text-center hidden md:flex justify-center"><TierBadge tier={player.tier} size="sm" showSublabel /></span>
                     <span className="text-sm text-center hidden md:block">{player.total_matches}</span>
                     <span className="text-sm text-center hidden md:block font-mono" style={{ color: winRate >= 60 ? '#22C55E' : winRate >= 40 ? 'inherit' : '#EF4444' }}>
                       {winRate}%
@@ -173,7 +170,7 @@ export default function RankingsPage() {
             <span>#</span>
             <span>Phòng ban</span>
             <span className="text-center">Người chơi</span>
-            <span className="text-center">ELO TB</span>
+            <span className="text-center">Tier TB</span>
             <span className="text-center">Trận</span>
             <span className="text-center">Win%</span>
           </div>
@@ -193,7 +190,7 @@ export default function RankingsPage() {
 
                 <div>
                   <p className="font-medium text-sm">🏢 {dept.name}</p>
-                  <p className="text-xs text-[var(--muted-fg)] md:hidden">{dept.playerCount} người · ELO {dept.avgElo}</p>
+                  <p className="text-xs text-[var(--muted-fg)] md:hidden">{dept.playerCount} người · Tier {dept.avgTier}</p>
                 </div>
 
                 <div className="flex items-center gap-2 md:hidden">
@@ -201,7 +198,7 @@ export default function RankingsPage() {
                 </div>
 
                 <span className="text-sm text-center hidden md:block">{dept.playerCount}</span>
-                <span className="font-mono font-bold text-sm text-center hidden md:block">{dept.avgElo}</span>
+                <span className="font-mono font-bold text-sm text-center hidden md:block">{dept.avgTier}</span>
                 <span className="text-sm text-center hidden md:block">{dept.totalMatches}</span>
                 <span className="text-sm text-center hidden md:block font-mono" style={{ color: dept.winRate >= 55 ? '#22C55E' : '#inherit' }}>
                   {dept.winRate}%

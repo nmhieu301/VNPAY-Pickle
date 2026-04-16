@@ -30,7 +30,7 @@ export default function ProfilePage() {
     ? Math.round((currentUser.total_wins / currentUser.total_matches) * 100)
     : 0;
   const rank = [...players]
-    .sort((a, b) => b.elo_rating - a.elo_rating)
+    .sort((a, b) => (b.tier ?? 0) - (a.tier ?? 0))
     .findIndex(p => p.id === currentUser.id) + 1;
 
   const handleLogout = async () => {
@@ -108,7 +108,7 @@ export default function ProfilePage() {
         {dept && <p className="text-sm text-[var(--muted-fg)] mt-1">🏢 {dept.name}</p>}
 
         <div className="flex items-center justify-center gap-3 mt-4">
-          <TierBadge elo={currentUser.elo_rating} showElo size="lg" />
+          <TierBadge tier={currentUser.tier} showSublabel size="lg" />
           <span className="badge bg-[var(--muted)] text-[var(--muted-fg)]">#{rank} toàn công ty</span>
         </div>
 
@@ -126,21 +126,17 @@ export default function ProfilePage() {
         ))}
       </motion.div>
 
-      {/* ELO Card */}
+      {/* Tier Card */}
       <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="gradient-vnpay rounded-2xl p-5 text-white">
-        <h3 className="font-semibold mb-3">⚡ ELO Rating</h3>
+        <h3 className="font-semibold mb-3">🏅 Hạng thi đấu</h3>
         <div className="flex items-end gap-4">
           <div>
-            <p className="text-4xl font-mono font-bold">{currentUser.elo_rating}</p>
-            <p className="text-white/70 text-sm mt-1">Xếp hạng #{rank}</p>
+            <TierBadge tier={currentUser.tier} size="lg" showSublabel />
+            <p className="text-white/70 text-sm mt-2">Xếp hạng #{rank}</p>
           </div>
           <div className="flex-1">
             {currentUser.win_streak > 0 && <p className="text-sm">🔥 {currentUser.win_streak} thắng liên tiếp</p>}
-            <p className="text-sm text-white/70">
-              {currentUser.total_matches < 10
-                ? `📍 Placement: ${currentUser.total_matches}/10 trận`
-                : `📊 ${currentUser.total_matches} trận đã đấu`}
-            </p>
+            <p className="text-sm text-white/70">📊 {currentUser.total_matches} trận đã đấu</p>
           </div>
         </div>
       </motion.div>

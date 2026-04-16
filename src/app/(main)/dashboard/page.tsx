@@ -27,7 +27,7 @@ export default function DashboardPage() {
 
   // Memoized sorted players — reused for both rank and top 5 list
   const sortedPlayers = useMemo(
-    () => [...players].sort((a, b) => b.elo_rating - a.elo_rating),
+    () => [...players].sort((a, b) => (b.tier ?? 0) - (a.tier ?? 0)),
     [players]
   );
 
@@ -67,7 +67,7 @@ export default function DashboardPage() {
                 })()}
           </h1>
           <div className="flex items-center gap-3 mt-3">
-            <TierBadge elo={currentUser.elo_rating} showElo size="md" />
+            <TierBadge tier={currentUser.tier} showSublabel size="md" />
             {currentUser.win_streak > 0 && (
               <span className="flex items-center gap-1 bg-white/20 rounded-full px-2.5 py-0.5 text-xs font-semibold">
                 🔥 {currentUser.win_streak} thắng liên tiếp
@@ -85,7 +85,7 @@ export default function DashboardPage() {
         className="grid grid-cols-2 md:grid-cols-4 gap-3"
       >
         {[
-          { icon: <Zap className="w-5 h-5" style={{ color: '#005BAA' }} />, value: currentUser.elo_rating, label: 'ELO Rating', fontClass: 'font-mono' },
+          { icon: <Zap className="w-5 h-5" style={{ color: '#005BAA' }} />, value: `T${currentUser.tier}`, label: 'Tier', fontClass: 'font-mono' },
           { icon: <BarChart3 className="w-5 h-5" style={{ color: '#00A651' }} />, value: `#${rank}`, label: 'Xếp hạng', fontClass: 'font-mono' },
           { icon: <Gamepad2 className="w-5 h-5" style={{ color: '#FF6B35' }} />, value: currentUser.total_matches, label: 'Tổng trận', fontClass: 'font-mono' },
           { icon: <TrendingUp className="w-5 h-5" style={{ color: '#9B59B6' }} />, value: `${winRate}%`, label: 'Tỷ lệ thắng', fontClass: 'font-mono' },
@@ -192,8 +192,7 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{player.nickname || player.full_name}</p>
                 </div>
-                <span className="font-mono text-sm font-bold">{player.elo_rating}</span>
-                <TierBadge elo={player.elo_rating} size="sm" showLabel={false} />
+                <TierBadge tier={player.tier} size="sm" />
               </div>
             ))}
         </div>

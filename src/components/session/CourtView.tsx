@@ -23,8 +23,7 @@ function TeamPlayer({ player }: { player: Player }) {
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm text-white truncate">{player.nickname || player.full_name}</p>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-white/70 font-mono">⚡ {player.elo_rating}</span>
-          <TierBadge elo={player.elo_rating} size="sm" showLabel={false} />
+          <TierBadge tier={player.tier} size="sm" />
         </div>
       </div>
     </div>
@@ -32,11 +31,11 @@ function TeamPlayer({ player }: { player: Player }) {
 }
 
 export function CourtView({ court, onScore }: CourtViewProps) {
-  const balanceLabel = court.elo_diff === 0
+  const balanceLabel = court.tier_diff === 0
     ? '✅ Cân bằng hoàn hảo'
-    : court.elo_diff <= 30
+    : court.tier_diff === 1
       ? '✅ Rất cân bằng'
-      : court.elo_diff <= 50
+      : court.tier_diff === 2
         ? '⚠️ Chấp nhận được'
         : '❌ Chênh lệch lớn';
 
@@ -84,9 +83,9 @@ export function CourtView({ court, onScore }: CourtViewProps) {
       <div className="bg-[var(--surface)] px-4 py-3 border-t border-[var(--border-color)]">
         <div className="flex items-center justify-between text-sm">
           <span className="text-[var(--muted-fg)]">
-            ELO: <span className="font-mono font-semibold text-red-500">{court.team_a_elo}</span>
+            Tier: <span className="font-mono font-semibold text-red-500">{court.team_a_tier}</span>
             {' vs '}
-            <span className="font-mono font-semibold text-blue-500">{court.team_b_elo}</span>
+            <span className="font-mono font-semibold text-blue-500">{court.team_b_tier}</span>
           </span>
           <span className="text-xs">{balanceLabel}</span>
         </div>
