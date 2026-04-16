@@ -9,6 +9,17 @@ import type {
   TournamentTeamExtended, Player, GuestTier,
 } from '@/types';
 
+// ─── Partial player type for list/search queries ───
+export interface PlayerSummary {
+  id: string;
+  full_name: string;
+  nickname: string | null;
+  email: string;
+  elo_rating: number | null;
+  tier: number;
+  department_id: string | null;
+}
+
 // ─── Committee Management ───
 
 export async function fetchCommittee(tournamentId: string): Promise<TournamentCommitteeMember[]> {
@@ -19,7 +30,7 @@ export async function fetchCommittee(tournamentId: string): Promise<TournamentCo
     .eq('tournament_id', tournamentId)
     .order('added_at');
   if (error) { console.error('fetchCommittee:', error); return []; }
-  return data as TournamentCommitteeMember[];
+  return data as unknown as TournamentCommitteeMember[];
 }
 
 export async function addCommitteeMember(
@@ -34,7 +45,7 @@ export async function addCommitteeMember(
     .select(`*, player:players(*)`)
     .single();
   if (error) { console.error('addCommitteeMember:', error); return null; }
-  return data as TournamentCommitteeMember;
+  return data as unknown as TournamentCommitteeMember;
 }
 
 export async function removeCommitteeMember(id: string): Promise<boolean> {
@@ -66,16 +77,16 @@ export async function searchPlayers(query: string, limit = 10): Promise<Player[]
     .limit(limit)
     .order('full_name');
   if (error) { console.error('searchPlayers:', error); return []; }
-  return data as Player[];
+  return data as unknown as Player[];
 }
 
-export async function fetchAllPlayers(): Promise<Player[]> {
+export async function fetchAllPlayers(): Promise<PlayerSummary[]> {
   const supabase = createClient();
   const { data } = await supabase
     .from('players')
     .select('id, full_name, nickname, email, elo_rating, tier, department_id')
     .order('full_name');
-  return (data ?? []) as Player[];
+  return (data ?? []) as PlayerSummary[];
 }
 
 // ─── Manual Player Registration ───
@@ -95,14 +106,14 @@ export async function addPlayerToEvent(
     .eq('id', player1Id)
     .single();
 
-  let avgElo = p1?.elo_rating ?? 1000;
+  let avgElo = (p1 as { elo_rating?: number } | null)?.elo_rating ?? 1000;
   if (player2Id) {
     const { data: p2 } = await supabase
       .from('players')
       .select('elo_rating')
       .eq('id', player2Id)
       .single();
-    avgElo = ((p1?.elo_rating ?? 1000) + (p2?.elo_rating ?? 1000)) / 2;
+    avgElo = (((p1 as { elo_rating?: number } | null)?.elo_rating ?? 1000) + ((p2 as { elo_rating?: number } | null)?.elo_rating ?? 1000)) / 2;
   }
 
   const { data, error } = await supabase
@@ -121,7 +132,7 @@ export async function addPlayerToEvent(
     `)
     .single();
   if (error) { console.error('addPlayerToEvent:', error); return null; }
-  return data as TournamentTeamExtended;
+  return data as unknown as TournamentTeamExtended;
 }
 
 export async function bulkAddTeams(
@@ -170,7 +181,7 @@ export async function createGuestPlayer(params: {
     .select('*')
     .single();
   if (error) { console.error('createGuestPlayer:', error); return null; }
-  return data as GuestPlayer;
+  return data as unknown as GuestPlayer;
 }
 
 export async function linkGuestPlayer(guestId: string, playerId: string): Promise<boolean> {
@@ -189,7 +200,7 @@ export async function fetchGuestPlayers(tournamentId: string): Promise<GuestPlay
     .select('*')
     .eq('tournament_id', tournamentId)
     .order('created_at');
-  return (data ?? []) as GuestPlayer[];
+  return (data ?? []) as unknown as GuestPlayer[];
 }
 
 // ─── Team Management (Seed / Status) ───
@@ -271,7 +282,8 @@ export async function lockMatch(matchId: string, lockedBy: string): Promise<bool
     .eq('id', matchId)
     .single();
 
-  if (match?.scoring_locked_by && match.scoring_locked_by !== lockedBy) return false;
+  const matchData = match as { scoring_locked_by?: string | null } | null;
+  if (matchData?.scoring_locked_by && matchData.scoring_locked_by !== lockedBy) return false;
 
   const { error } = await supabase
     .from('tournament_matches')
@@ -288,7 +300,8 @@ export async function unlockMatch(matchId: string, playerId: string, isDirector 
     .eq('id', matchId)
     .single();
 
-  if (!isDirector && match?.scoring_locked_by !== playerId) return false;
+  const matchData = match as { scoring_locked_by?: string | null } | null;
+  if (!isDirector && matchData?.scoring_locked_by !== playerId) return false;
 
   const { error } = await supabase
     .from('tournament_matches')
@@ -321,7 +334,7 @@ export async function appendScoreLog(params: {
     .select()
     .single();
   if (error) { console.error('appendScoreLog:', error); return null; }
-  return data as ScoreLog;
+  return data as unknown as ScoreLog;
 }
 
 export async function fetchScoreLog(matchId: string): Promise<ScoreLog[]> {
@@ -331,7 +344,7 @@ export async function fetchScoreLog(matchId: string): Promise<ScoreLog[]> {
     .select('*')
     .eq('match_id', matchId)
     .order('created_at');
-  return (data ?? []) as ScoreLog[];
+  return (data ?? []) as unknown as ScoreLog[];
 }
 
 export async function updateMatchScoreLive(params: {
