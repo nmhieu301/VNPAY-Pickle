@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════
 
 import { getClient } from './client';
-import type { Player, Session, Department, Venue, SessionPlayer, Group } from '@/types';
+import type { Player, Session, Department, Venue, Group } from '@/types';
 
 const supabase = getClient();
 
@@ -130,7 +130,7 @@ export async function fetchPlayers(): Promise<Player[]> {
     .order('tier', { ascending: false });
 
   if (error) { console.error('fetchPlayers error:', error); return []; }
-  return (data || []).map(mapPlayer);
+  return (data || []).map((row: Record<string, unknown>) => mapPlayer(row));
 }
 
 export async function fetchPlayersAdmin(): Promise<Player[]> {
@@ -140,7 +140,7 @@ export async function fetchPlayersAdmin(): Promise<Player[]> {
     .order('joined_at', { ascending: false });
 
   if (error) { console.error('fetchPlayersAdmin error:', error); return []; }
-  return (data || []).map(mapPlayer);
+  return (data || []).map((row: Record<string, unknown>) => mapPlayer(row));
 }
 
 export async function fetchPlayerByEmail(email: string): Promise<Player | null> {
@@ -151,7 +151,7 @@ export async function fetchPlayerByEmail(email: string): Promise<Player | null> 
     .single();
 
   if (error || !data) return null;
-  return mapPlayer(data);
+  return mapPlayer(data as Record<string, unknown>);
 }
 
 export async function fetchDepartments(): Promise<Department[]> {
@@ -161,7 +161,7 @@ export async function fetchDepartments(): Promise<Department[]> {
     .order('name');
 
   if (error) { console.error('fetchDepartments error:', error); return []; }
-  return (data || []).map(mapDepartment);
+  return (data || []).map((row: Record<string, unknown>) => mapDepartment(row));
 }
 
 export async function fetchVenues(): Promise<Venue[]> {
@@ -171,7 +171,7 @@ export async function fetchVenues(): Promise<Venue[]> {
     .order('name');
 
   if (error) { console.error('fetchVenues error:', error); return []; }
-  return (data || []).map(mapVenue);
+  return (data || []).map((row: Record<string, unknown>) => mapVenue(row));
 }
 
 export async function fetchSessions(opts?: { limit?: number; offset?: number }): Promise<Session[]> {
@@ -187,7 +187,7 @@ export async function fetchSessions(opts?: { limit?: number; offset?: number }):
 
   const { data, error } = await query;
   if (error) { console.error('fetchSessions error:', error); return []; }
-  return (data || []).map(mapSession);
+  return (data || []).map((row: Record<string, unknown>) => mapSession(row));
 }
 
 export async function fetchSessionPlayers(sessionId: string): Promise<string[]> {
@@ -197,7 +197,7 @@ export async function fetchSessionPlayers(sessionId: string): Promise<string[]> 
     .eq('session_id', sessionId);
 
   if (error) { console.error('fetchSessionPlayers error:', error); return []; }
-  return (data || []).map(r => r.player_id);
+  return (data || []).map((r: { player_id: string }) => r.player_id);
 }
 
 export async function fetchCheckedInPlayers(sessionId: string): Promise<string[]> {
@@ -208,7 +208,7 @@ export async function fetchCheckedInPlayers(sessionId: string): Promise<string[]
     .eq('checked_in', true);
 
   if (error) return [];
-  return (data || []).map(r => r.player_id);
+  return (data || []).map((r: { player_id: string }) => r.player_id);
 }
 
 export async function fetchAllSessionPlayersMap(): Promise<Record<string, string[]>> {
@@ -218,7 +218,7 @@ export async function fetchAllSessionPlayersMap(): Promise<Record<string, string
 
   if (error) return {};
   const map: Record<string, string[]> = {};
-  for (const row of data || []) {
+  for (const row of (data || []) as Array<{ session_id: string; player_id: string }>) {
     if (!map[row.session_id]) map[row.session_id] = [];
     map[row.session_id].push(row.player_id);
   }
@@ -233,7 +233,7 @@ export async function fetchAllCheckedInMap(): Promise<Record<string, string[]>> 
 
   if (error) return {};
   const map: Record<string, string[]> = {};
-  for (const row of data || []) {
+  for (const row of (data || []) as Array<{ session_id: string; player_id: string }>) {
     if (!map[row.session_id]) map[row.session_id] = [];
     map[row.session_id].push(row.player_id);
   }
@@ -246,7 +246,7 @@ export async function fetchAllCheckedInMap(): Promise<Record<string, string[]>> 
 
 export async function createPlayer(email: string): Promise<Player | null> {
   const nameParts = email.split('@')[0].split('.');
-  const fullName = nameParts.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const fullName = nameParts.map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   const nickname = nameParts[0];
 
   // Get the auth user ID so player.id matches auth.uid() for RLS policies
@@ -272,7 +272,7 @@ export async function createPlayer(email: string): Promise<Player | null> {
     .single();
 
   if (error) { console.error('createPlayer error:', error); return null; }
-  return mapPlayer(data);
+  return mapPlayer(data as Record<string, unknown>);
 }
 
 export async function insertSession(sessionData: {
@@ -296,7 +296,7 @@ export async function insertSession(sessionData: {
     .single();
 
   if (error) { console.error('insertSession error:', error); return null; }
-  return mapSession(data);
+  return mapSession(data as Record<string, unknown>);
 }
 
 export async function joinSessionDB(sessionId: string, playerId: string): Promise<boolean> {
@@ -352,7 +352,7 @@ export async function createVenueDB(venueData: {
     .single();
 
   if (error) { console.error('createVenue error:', error); return null; }
-  return mapVenue(data);
+  return mapVenue(data as Record<string, unknown>);
 }
 
 export async function updatePlayerDB(playerId: string, updates: Partial<Player> & Record<string, unknown>): Promise<boolean> {
@@ -435,7 +435,7 @@ export async function adminCreatePlayerDB(data: {
     .single();
 
   if (error) { console.error('adminCreatePlayerDB error:', error); return null; }
-  return mapPlayer(row);
+  return mapPlayer(row as Record<string, unknown>);
 }
 
 export async function adminDeletePlayerDB(playerId: string): Promise<boolean> {
@@ -495,7 +495,7 @@ export async function fetchGroupsAdmin(): Promise<Group[]> {
     .order('created_at', { ascending: false });
 
   if (error) { console.error('fetchGroupsAdmin error:', error); return []; }
-  return (data || []).map(mapGroup);
+  return (data || []).map((row: Record<string, unknown>) => mapGroup(row));
 }
 
 export async function adminCreateGroupDB(data: {
@@ -518,7 +518,7 @@ export async function adminCreateGroupDB(data: {
     .single();
 
   if (error) { console.error('adminCreateGroupDB error:', error); return null; }
-  return mapGroup(row);
+  return mapGroup(row as Record<string, unknown>);
 }
 
 export async function adminUpdateGroupDB(groupId: string, updates: Partial<Group>): Promise<boolean> {
@@ -552,4 +552,3 @@ export async function adminDeleteGroupDB(groupId: string): Promise<boolean> {
   if (error) { console.error('adminDeleteGroupDB error:', error); return false; }
   return true;
 }
-
