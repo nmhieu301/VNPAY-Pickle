@@ -3,8 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { TierBadge } from '@/components/player/TierBadge';
-import { motion } from 'framer-motion';
-import { Search, ChevronUp, ChevronDown, Minus, Filter } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 
 type FilterTab = 'all' | 'department';
 
@@ -120,11 +119,8 @@ export default function RankingsPage() {
                   : 0;
 
                 return (
-                  <motion.div
+                  <div
                     key={player.id}
-                    initial={{ x: -10, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: i * 0.02 }}
                     className="grid grid-cols-[3rem_1fr_auto] md:grid-cols-[3rem_1fr_8rem_5rem_5rem_4rem_5rem] gap-2 px-4 py-3 items-center hover:bg-[var(--muted)] transition-colors"
                   >
                     {/* Rank */}
@@ -162,7 +158,7 @@ export default function RankingsPage() {
                     <span className="text-sm text-center hidden md:block font-mono" style={{ color: winRate >= 60 ? '#22C55E' : winRate >= 40 ? 'inherit' : '#EF4444' }}>
                       {winRate}%
                     </span>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
@@ -184,11 +180,8 @@ export default function RankingsPage() {
 
           <div className="divide-y divide-[var(--border-color)]">
             {deptRankings.map((dept, i) => (
-              <motion.div
+              <div
                 key={dept.id}
-                initial={{ x: -10, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: i * 0.05 }}
                 className="grid grid-cols-[3rem_1fr_auto] md:grid-cols-[3rem_1fr_5rem_5rem_5rem_5rem] gap-2 px-4 py-3 items-center hover:bg-[var(--muted)] transition-colors cursor-pointer"
                 onClick={() => { setTab('all'); setDeptFilter(dept.id); }}
               >
@@ -213,7 +206,7 @@ export default function RankingsPage() {
                 <span className="text-sm text-center hidden md:block font-mono" style={{ color: dept.winRate >= 55 ? '#22C55E' : '#inherit' }}>
                   {dept.winRate}%
                 </span>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>

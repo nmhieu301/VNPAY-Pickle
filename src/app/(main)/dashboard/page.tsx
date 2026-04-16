@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useAppStore } from '@/lib/store';
 import { SessionCard } from '@/components/session/SessionCard';
 import { PickleballIcon } from '@/components/icons/PickleballIcon';
@@ -15,17 +16,23 @@ export default function DashboardPage() {
 
   if (!currentUser) return null;
 
-  const upcomingSessions = sessions
-    .filter(s => s.status === 'open')
-    .slice(0, 3);
+  const upcomingSessions = useMemo(
+    () => sessions.filter(s => s.status === 'open').slice(0, 3),
+    [sessions]
+  );
 
   const winRate = currentUser.total_matches > 0
     ? Math.round((currentUser.total_wins / currentUser.total_matches) * 100)
     : 0;
 
-  const rank = [...players]
-    .sort((a, b) => b.elo_rating - a.elo_rating)
-    .findIndex(p => p.id === currentUser.id) + 1;
+  // Memoized sorted players — reused for both rank and top 5 list
+  const sortedPlayers = useMemo(
+    () => [...players].sort((a, b) => b.elo_rating - a.elo_rating),
+    [players]
+  );
+
+  const rank = sortedPlayers.findIndex(p => p.id === currentUser.id) + 1;
+  const topPlayers = sortedPlayers.slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -172,10 +179,7 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="card divide-y divide-[var(--border-color)]">
-          {[...players]
-            .sort((a, b) => b.elo_rating - a.elo_rating)
-            .slice(0, 5)
-            .map((player, i) => (
+          {topPlayers.map((player, i) => (
               <div key={player.id} className="flex items-center gap-3 px-4 py-3">
                 <span className={`w-7 text-center font-bold font-mono ${
                   i === 0 ? 'text-yellow-500 text-lg' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-orange-400' : 'text-[var(--muted-fg)]'

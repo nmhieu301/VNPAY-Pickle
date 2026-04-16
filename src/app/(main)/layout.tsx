@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { Header } from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -56,7 +57,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <>
         <Header />
         <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 pb-24 md:pb-6">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
         <footer className="hidden md:block border-t border-[var(--border-color)] py-6 text-center text-sm text-[var(--muted-fg)]">
           <div className="flex items-center justify-center gap-3">

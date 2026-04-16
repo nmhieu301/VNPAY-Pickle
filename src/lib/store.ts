@@ -6,9 +6,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Player, Session, Department, Venue, Notification, MatchingResult, Group } from '@/types';
-import { INITIAL_ELO } from '@/lib/constants/tiers';
-import { calculateTier } from '@/lib/algorithms/elo';
-import { createClient } from '@/lib/supabase/client';
+import { getClient } from '@/lib/supabase/client';
 import {
   fetchPlayers,
   fetchPlayerByEmail,
@@ -27,7 +25,6 @@ import {
   deleteSessionDB,
   adminCreatePlayerDB,
   adminDeletePlayerDB,
-  fetchGroupsAdmin,
   adminCreateGroupDB,
   adminUpdateGroupDB,
   adminDeleteGroupDB,
@@ -64,9 +61,16 @@ interface AppStore {
   notifications: Notification[];
   matchingResults: Record<string, MatchingResult>;
 
-  // Loading state
+  // O(1) lookup Maps (not persisted, rebuilt on load)
+  playerMap: Map<string, Player>;
+  venueMap: Map<string, Venue>;
+  departmentMap: Map<string, Department>;
+  sessionMap: Map<string, Session>;
+
+  // Loading / error state
   isLoading: boolean;
   isInitialized: boolean;
+  initError: string | null;
   initializeData: () => Promise<void>;
 
   // Session actions
@@ -75,7 +79,7 @@ interface AppStore {
   leaveSession: (sessionId: string) => Promise<void>;
   setMatchingResult: (sessionId: string, result: MatchingResult) => void;
 
-  // Player helpers
+  // Player helpers — O(1) via Maps
   getPlayer: (id: string) => Player | undefined;
   getDepartment: (id: string) => Department | undefined;
   getVenue: (id: string) => Venue | undefined;
@@ -86,6 +90,11 @@ interface AppStore {
   checkedInPlayers: Record<string, string[]>;
   toggleCheckIn: (sessionId: string, playerId: string) => Promise<void>;
   addVenue: (data: { name: string; address: string; district?: string | null; num_courts?: number | null; phone?: string | null; notes?: string | null }) => Promise<Venue | null>;
+
+  // Real-time sync
+  realtimeChannel: ReturnType<ReturnType<typeof getClient>['channel']> | null;
+  subscribeRealtime: (sessionId: string) => () => void;
+  unsubscribeRealtime: () => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -97,7 +106,7 @@ export const useAppStore = create<AppStore>()(
       authEmail: null,
 
       initAuth: () => {
-        const supabase = createClient();
+        const supabase = getClient();
         let loginHandled = false; // Prevent duplicate loginWithEmail calls
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (_event, session) => {
@@ -142,7 +151,8 @@ export const useAppStore = create<AppStore>()(
       },
 
       logout: async () => {
-        const supabase = createClient();
+        const supabase = getClient();
+        get().unsubscribeRealtime();
         await supabase.auth.signOut();
         // Clear all state (including persisted cache)
         set({
@@ -158,22 +168,35 @@ export const useAppStore = create<AppStore>()(
           checkedInPlayers: {},
           notifications: [],
           matchingResults: {},
+          playerMap: new Map(),
+          venueMap: new Map(),
+          departmentMap: new Map(),
+          sessionMap: new Map(),
+          realtimeChannel: null,
         });
         // Hard redirect ensures no stale React state
         if (typeof window !== 'undefined') {
           window.location.href = '/';
         }
       },
-      
+
       isAdmin: () => get().currentUser?.role === 'admin',
 
       adminUpdatePlayer: async (playerId, updates) => {
         const ok = await updatePlayerDB(playerId, updates);
         if (ok) {
-          set(state => ({
-            players: state.players.map(p => p.id === playerId ? { ...p, ...updates } : p),
-            currentUser: state.currentUser?.id === playerId ? { ...state.currentUser, ...updates } : state.currentUser,
-          }));
+          set(state => {
+            const newPlayers = state.players.map(p =>
+              p.id === playerId ? { ...p, ...updates } : p
+            );
+            return {
+              players: newPlayers,
+              playerMap: new Map(newPlayers.map(p => [p.id, p])),
+              currentUser: state.currentUser?.id === playerId
+                ? { ...state.currentUser, ...updates }
+                : state.currentUser,
+            };
+          });
         }
         return ok;
       },
@@ -181,9 +204,13 @@ export const useAppStore = create<AppStore>()(
       adminDeleteSession: async (sessionId) => {
         const ok = await deleteSessionDB(sessionId);
         if (ok) {
-          set(state => ({
-            sessions: state.sessions.filter(s => s.id !== sessionId),
-          }));
+          set(state => {
+            const newSessions = state.sessions.filter(s => s.id !== sessionId);
+            return {
+              sessions: newSessions,
+              sessionMap: new Map(newSessions.map(s => [s.id, s])),
+            };
+          });
         }
         return ok;
       },
@@ -191,7 +218,13 @@ export const useAppStore = create<AppStore>()(
       adminCreatePlayer: async (data) => {
         const player = await adminCreatePlayerDB(data);
         if (player) {
-          set(state => ({ players: [player, ...state.players] }));
+          set(state => {
+            const newPlayers = [player, ...state.players];
+            return {
+              players: newPlayers,
+              playerMap: new Map(newPlayers.map(p => [p.id, p])),
+            };
+          });
         }
         return player;
       },
@@ -199,7 +232,13 @@ export const useAppStore = create<AppStore>()(
       adminDeletePlayer: async (playerId) => {
         const ok = await adminDeletePlayerDB(playerId);
         if (ok) {
-          set(state => ({ players: state.players.filter(p => p.id !== playerId) }));
+          set(state => {
+            const newPlayers = state.players.filter(p => p.id !== playerId);
+            return {
+              players: newPlayers,
+              playerMap: new Map(newPlayers.map(p => [p.id, p])),
+            };
+          });
         }
         return ok;
       },
@@ -221,7 +260,15 @@ export const useAppStore = create<AppStore>()(
         if (!user) return false;
         const ok = await updatePlayerDB(user.id, updates);
         if (ok) {
-          set({ currentUser: { ...user, ...updates } });
+          const updated = { ...user, ...updates };
+          set(state => {
+            const newPlayers = state.players.map(p => p.id === user.id ? updated : p);
+            return {
+              currentUser: updated,
+              players: newPlayers,
+              playerMap: new Map(newPlayers.map(p => [p.id, p])),
+            };
+          });
         }
         return ok;
       },
@@ -233,13 +280,18 @@ export const useAppStore = create<AppStore>()(
       sessions: [],
       notifications: [],
       matchingResults: {},
+      playerMap: new Map(),
+      venueMap: new Map(),
+      departmentMap: new Map(),
+      sessionMap: new Map(),
       isLoading: false,
       isInitialized: false,
+      initError: null,
 
       // ─── Initialize: Fetch all data from Supabase ───
       initializeData: async () => {
         if (get().isLoading) return;
-        set({ isLoading: true });
+        set({ isLoading: true, initError: null });
 
         try {
           const [players, departments, venues, sessions, sessionPlayersMap, checkedInMap] =
@@ -265,12 +317,18 @@ export const useAppStore = create<AppStore>()(
             sessions: sessionsWithCount,
             sessionPlayers: sessionPlayersMap,
             checkedInPlayers: checkedInMap,
+            // Rebuild O(1) lookup Maps
+            playerMap: new Map(players.map(p => [p.id, p])),
+            venueMap: new Map(venues.map(v => [v.id, v])),
+            departmentMap: new Map(departments.map(d => [d.id, d])),
+            sessionMap: new Map(sessionsWithCount.map(s => [s.id, s])),
             isInitialized: true,
             isLoading: false,
           });
         } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Không thể tải dữ liệu';
           console.error('Failed to initialize data:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, initError: msg });
         }
       },
 
@@ -300,11 +358,15 @@ export const useAppStore = create<AppStore>()(
         // Auto-join organizer
         await joinSessionDB(dbSession.id, sessionData.host_id);
 
-        set(state => ({
-          sessions: [dbSession, ...state.sessions],
-          sessionPlayers: { ...state.sessionPlayers, [dbSession.id]: [sessionData.host_id] },
-          checkedInPlayers: { ...state.checkedInPlayers, [dbSession.id]: [] },
-        }));
+        set(state => {
+          const newSessions = [dbSession, ...state.sessions];
+          return {
+            sessions: newSessions,
+            sessionMap: new Map(newSessions.map(s => [s.id, s])),
+            sessionPlayers: { ...state.sessionPlayers, [dbSession.id]: [sessionData.host_id] },
+            checkedInPlayers: { ...state.checkedInPlayers, [dbSession.id]: [] },
+          };
+        });
 
         return dbSession;
       },
@@ -319,12 +381,16 @@ export const useAppStore = create<AppStore>()(
         const ok = await joinSessionDB(sessionId, user.id);
         if (!ok) return;
 
-        set(state => ({
-          sessionPlayers: { ...state.sessionPlayers, [sessionId]: [...current, user.id] },
-          sessions: state.sessions.map(s =>
+        set(state => {
+          const newSessions = state.sessions.map(s =>
             s.id === sessionId ? { ...s, player_count: (s.player_count || 0) + 1 } : s
-          ),
-        }));
+          );
+          return {
+            sessionPlayers: { ...state.sessionPlayers, [sessionId]: [...current, user.id] },
+            sessions: newSessions,
+            sessionMap: new Map(newSessions.map(s => [s.id, s])),
+          };
+        });
       },
 
       leaveSession: async (sessionId: string) => {
@@ -334,19 +400,23 @@ export const useAppStore = create<AppStore>()(
         const ok = await leaveSessionDB(sessionId, user.id);
         if (!ok) return;
 
-        set(state => ({
-          sessionPlayers: {
-            ...state.sessionPlayers,
-            [sessionId]: (state.sessionPlayers[sessionId] || []).filter(id => id !== user.id),
-          },
-          checkedInPlayers: {
-            ...state.checkedInPlayers,
-            [sessionId]: (state.checkedInPlayers[sessionId] || []).filter(id => id !== user.id),
-          },
-          sessions: state.sessions.map(s =>
+        set(state => {
+          const newSessions = state.sessions.map(s =>
             s.id === sessionId ? { ...s, player_count: Math.max(0, (s.player_count || 1) - 1) } : s
-          ),
-        }));
+          );
+          return {
+            sessionPlayers: {
+              ...state.sessionPlayers,
+              [sessionId]: (state.sessionPlayers[sessionId] || []).filter(id => id !== user.id),
+            },
+            checkedInPlayers: {
+              ...state.checkedInPlayers,
+              [sessionId]: (state.checkedInPlayers[sessionId] || []).filter(id => id !== user.id),
+            },
+            sessions: newSessions,
+            sessionMap: new Map(newSessions.map(s => [s.id, s])),
+          };
+        });
       },
 
       toggleCheckIn: async (sessionId: string, playerId: string) => {
@@ -370,7 +440,13 @@ export const useAppStore = create<AppStore>()(
       addVenue: async (venueData) => {
         const venue = await createVenueDB(venueData);
         if (!venue) return null;
-        set(state => ({ venues: [...state.venues, venue] }));
+        set(state => {
+          const newVenues = [...state.venues, venue];
+          return {
+            venues: newVenues,
+            venueMap: new Map(newVenues.map(v => [v.id, v])),
+          };
+        });
         return venue;
       },
 
@@ -380,27 +456,112 @@ export const useAppStore = create<AppStore>()(
         }));
       },
 
-      // ─── Helpers ───
-      getPlayer: (id) => get().players.find(p => p.id === id),
-      getDepartment: (id) => get().departments.find(d => d.id === id),
-      getVenue: (id) => get().venues.find(v => v.id === id),
-      getSession: (id) => get().sessions.find(s => s.id === id),
+      // ─── O(1) Helpers via Maps ───
+      getPlayer: (id) => get().playerMap.get(id),
+      getDepartment: (id) => get().departmentMap.get(id),
+      getVenue: (id) => get().venueMap.get(id),
+      getSession: (id) => get().sessionMap.get(id),
+
+      // ─── Real-time ───
+      realtimeChannel: null,
+
+      subscribeRealtime: (sessionId: string) => {
+        const supabase = getClient();
+        // Clean up any existing subscription first
+        get().unsubscribeRealtime();
+
+        const channel = supabase
+          .channel(`session-players:${sessionId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'session_players',
+              filter: `session_id=eq.${sessionId}`,
+            },
+            (payload) => {
+              const newPlayerId = (payload.new as { player_id: string }).player_id;
+              set(state => {
+                const current = state.sessionPlayers[sessionId] || [];
+                if (current.includes(newPlayerId)) return state;
+                const updated = [...current, newPlayerId];
+                const newSessions = state.sessions.map(s =>
+                  s.id === sessionId ? { ...s, player_count: updated.length } : s
+                );
+                return {
+                  sessionPlayers: { ...state.sessionPlayers, [sessionId]: updated },
+                  sessions: newSessions,
+                  sessionMap: new Map(newSessions.map(s => [s.id, s])),
+                };
+              });
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: 'DELETE',
+              schema: 'public',
+              table: 'session_players',
+              filter: `session_id=eq.${sessionId}`,
+            },
+            (payload) => {
+              const removedPlayerId = (payload.old as { player_id: string }).player_id;
+              set(state => {
+                const updated = (state.sessionPlayers[sessionId] || [])
+                  .filter(id => id !== removedPlayerId);
+                const newSessions = state.sessions.map(s =>
+                  s.id === sessionId ? { ...s, player_count: updated.length } : s
+                );
+                return {
+                  sessionPlayers: { ...state.sessionPlayers, [sessionId]: updated },
+                  checkedInPlayers: {
+                    ...state.checkedInPlayers,
+                    [sessionId]: (state.checkedInPlayers[sessionId] || [])
+                      .filter(id => id !== removedPlayerId),
+                  },
+                  sessions: newSessions,
+                  sessionMap: new Map(newSessions.map(s => [s.id, s])),
+                };
+              });
+            }
+          )
+          .subscribe();
+
+        set({ realtimeChannel: channel });
+        return () => get().unsubscribeRealtime();
+      },
+
+      unsubscribeRealtime: () => {
+        const channel = get().realtimeChannel;
+        if (channel) {
+          const supabase = getClient();
+          supabase.removeChannel(channel);
+          set({ realtimeChannel: null });
+        }
+      },
     }),
     {
-      name: 'vnpay-pickle-store-v2',
+      name: 'vnpay-pickle-store-v3',
       partialize: (state) => ({
         currentUser: state.currentUser,
         isAuthenticated: state.isAuthenticated,
+        authEmail: state.authEmail,
         matchingResults: state.matchingResults,
-        // ⚡ Persist data so no reload spinner on revisit
-        players: state.players,
-        sessions: state.sessions,
-        departments: state.departments,
-        venues: state.venues,
-        sessionPlayers: state.sessionPlayers,
-        checkedInPlayers: state.checkedInPlayers,
-        isInitialized: state.isInitialized,
+        // Large arrays (players, sessions, venues, sessionPlayers) are NOT persisted
+        // to avoid localStorage quota issues. Data is fetched fresh on each load.
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        // Maps are derived — initialize empty (will be populated by initializeData)
+        state.playerMap = new Map();
+        state.venueMap = new Map();
+        state.departmentMap = new Map();
+        state.sessionMap = new Map();
+        state.realtimeChannel = null;
+        // Always re-fetch data on load
+        state.isInitialized = false;
+      },
     }
   )
 );

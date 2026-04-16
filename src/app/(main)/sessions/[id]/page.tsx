@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useMemo } from 'react';
+import { use, useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { PlayerCard } from '@/components/player/PlayerCard';
@@ -18,12 +18,18 @@ export default function SessionDetailPage({ params }: { params: Promise<{ id: st
   const {
     getSession, getPlayer, getVenue, sessionPlayers, checkedInPlayers,
     currentUser, joinSession, leaveSession, toggleCheckIn, players,
-    matchingResults, setMatchingResult
+    matchingResults, setMatchingResult, subscribeRealtime,
   } = useAppStore();
 
   const session = getSession(id);
   const [copied, setCopied] = useState(false);
   const [showMatching, setShowMatching] = useState(false);
+
+  // Real-time: sync player join/leave from other users
+  useEffect(() => {
+    if (!id) return;
+    return subscribeRealtime(id);
+  }, [id, subscribeRealtime]);
 
   const playerIds = sessionPlayers[id] || [];
   const checkedIds = checkedInPlayers[id] || [];

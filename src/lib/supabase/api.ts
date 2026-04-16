@@ -3,21 +3,19 @@
 // Centralized database queries
 // ═══════════════════════════════════════════
 
-import { createClient } from './client';
+import { getClient } from './client';
 import type { Player, Session, Department, Venue, SessionPlayer, Group } from '@/types';
 import { calculateTier } from '@/lib/algorithms/elo';
 
-const supabase = createClient();
+const supabase = getClient();
 
 // ─── Helper: Map DB row → Player type ───
 function mapPlayer(row: Record<string, unknown>): Player {
   const elo = row.elo_rating as number;
-  const email = row.email as string;
-  const isAdmin = email === 'hieunm2@vnpay.vn';
-  
+
   return {
     id: row.id as string,
-    email: email,
+    email: row.email as string,
     full_name: row.full_name as string,
     nickname: row.nickname as string | null,
     department_id: row.department_id as string | null,
@@ -29,7 +27,8 @@ function mapPlayer(row: Record<string, unknown>): Player {
     bio: row.bio as string | null,
     elo_rating: elo,
     tier: calculateTier(elo) as Player['tier'],
-    role: isAdmin ? 'admin' : 'player',
+    // Read role from DB — run SQL first if needed: UPDATE players SET role = 'admin' WHERE email = 'hieunm2@vnpay.vn';
+    role: (row.role as Player['role']) || 'player',
     is_active: row.is_active as boolean ?? true,
     total_matches: row.total_matches as number ?? 0,
     total_wins: row.wins as number ?? 0,
@@ -118,6 +117,12 @@ function mapVenue(row: Record<string, unknown>): Venue {
 }
 
 // ═══════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════
+
+export type ApiResult<T> = { data: T; error: null } | { data: null; error: string };
+
+// ═══════════════════════════════════════════
 // FETCH FUNCTIONS
 // ═══════════════════════════════════════════
 
@@ -173,12 +178,18 @@ export async function fetchVenues(): Promise<Venue[]> {
   return (data || []).map(mapVenue);
 }
 
-export async function fetchSessions(): Promise<Session[]> {
-  const { data, error } = await supabase
+export async function fetchSessions(opts?: { limit?: number; offset?: number }): Promise<Session[]> {
+  let query = supabase
     .from('sessions')
     .select('*')
     .order('session_date', { ascending: false });
 
+  if (opts?.limit !== undefined) {
+    const from = opts.offset ?? 0;
+    query = query.range(from, from + opts.limit - 1);
+  }
+
+  const { data, error } = await query;
   if (error) { console.error('fetchSessions error:', error); return []; }
   return (data || []).map(mapSession);
 }

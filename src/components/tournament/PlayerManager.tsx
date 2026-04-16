@@ -16,7 +16,16 @@ import {
 } from '@/lib/supabase/committeeApi';
 import { BulkAddModal } from './BulkAddModal';
 import { GuestPlayerForm } from './GuestPlayerForm';
-import { SeedEditor } from './SeedEditor';
+import dynamic from 'next/dynamic';
+
+// Lazy-load SeedEditor — it uses @hello-pangea/dnd which is a heavy dependency
+const SeedEditor = dynamic(
+  () => import('./SeedEditor').then(m => ({ default: m.SeedEditor })),
+  {
+    loading: () => <div className="card p-8 text-center text-[var(--muted-fg)]">Đang tải...</div>,
+    ssr: false,
+  }
+);
 import type { TournamentTeamExtended, TournamentEvent, Player } from '@/types';
 
 const STATUS_LABELS: Record<string, string> = {

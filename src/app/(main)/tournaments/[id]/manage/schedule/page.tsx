@@ -12,7 +12,16 @@ import { Loader2, ArrowLeft, RefreshCw, Calendar } from 'lucide-react';
 import { useTournamentStore } from '@/lib/tournamentStore';
 import { useAppStore } from '@/lib/store';
 import { useTournamentCommittee } from '@/hooks/useTournamentCommittee';
-import { ScheduleGrid } from '@/components/tournament/ScheduleGrid';
+import dynamic from 'next/dynamic';
+
+// Lazy-load ScheduleGrid — uses @hello-pangea/dnd (drag-and-drop)
+const ScheduleGrid = dynamic(
+  () => import('@/components/tournament/ScheduleGrid').then(m => ({ default: m.ScheduleGrid })),
+  {
+    loading: () => <div className="card p-8 text-center text-[var(--muted-fg)]">Đang tải lịch thi đấu...</div>,
+    ssr: false,
+  }
+);
 import { sendNotification } from '@/lib/supabase/committeeApi';
 import type { TournamentEvent } from '@/types';
 
