@@ -4,26 +4,26 @@
 // ═══════════════════════════════════════════
 
 import { CourtAssignment, Player, MatchingResult } from '@/types';
-import { getTierByElo } from '@/lib/constants/tiers';
+import { getTierConfig } from '@/lib/constants/tiers';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
 function playerLine(p: Player): string {
-  const tier = getTierByElo(p.elo_rating);
+  const tier = getTierConfig(p.tier);
   return `${p.nickname || p.full_name} (${tier.label} ${tier.icon})`;
 }
 
 function formatCourt(court: CourtAssignment): string {
   const teamANames = court.team_a.map(playerLine).join(' + ');
   const teamBNames = court.team_b.map(playerLine).join(' + ');
-  const balance = court.elo_diff <= 50 ? '✅' : court.elo_diff <= 100 ? '⚠️' : '❌';
+  const balance = court.tier_diff === 0 ? '✅' : court.tier_diff <= 1 ? '⚠️' : '❌';
 
   return [
     `🔸 Sân ${court.court_number}:`,
     `  🟥 ${teamANames}`,
     `  VS`,
     `  🟦 ${teamBNames}`,
-    `  ⚡ ELO: ${court.team_a_elo} vs ${court.team_b_elo} — Chênh: ${court.elo_diff} ${balance}`,
+    `  🏅 Tier: ${court.team_a_tier} vs ${court.team_b_tier} — Chênh: ${court.tier_diff} ${balance}`,
   ].join('\n');
 }
 
@@ -38,7 +38,7 @@ export function formatMatchingResult(
     ? format(date, "EEEE, dd/MM/yyyy", { locale: vi })
     : format(new Date(), "EEEE, dd/MM/yyyy", { locale: vi });
 
-  const modeLabel = matchMode === 'elo_balanced' ? 'Cân bằng ELO' : matchMode === 'random' ? 'Ngẫu nhiên' : 'Thủ công';
+  const modeLabel = matchMode === 'elo_balanced' ? 'Cân bằng Tier' : matchMode === 'random' ? 'Ngẫu nhiên' : 'Thủ công';
 
   const lines = [
     `🎾 VNPAY PICKLE — ${sessionTitle}`,
