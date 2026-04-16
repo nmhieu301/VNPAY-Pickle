@@ -378,6 +378,7 @@ export async function updatePlayerDB(playerId: string, updates: Partial<Player> 
     dbUpdates.experience_level = expMap[updates.experience] || 'beginner';
   }
   if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
+  if (updates.department_id !== undefined) dbUpdates.department_id = updates.department_id;
 
   const { error } = await supabase
     .from('players')

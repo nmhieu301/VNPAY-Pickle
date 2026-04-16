@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [editForm, setEditForm] = useState({
     nickname: '' as string,
+    department_id: null as string | null,
     hand_preference: 'right' as HandPreference,
     position_preference: 'flexible' as PositionPreference,
     experience: 'beginner' as ExperienceLevel,
@@ -45,6 +46,7 @@ export default function ProfilePage() {
       : currentUser.position_preference || 'flexible';
     setEditForm({
       nickname: currentUser.nickname || '',
+      department_id: currentUser.department_id || null,
       hand_preference: currentUser.hand_preference || 'right',
       position_preference: pos,
       experience: currentUser.experience || 'beginner',
@@ -200,6 +202,16 @@ export default function ProfilePage() {
               <div>
                 <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">Nickname</label>
                 <input className="input" value={editForm.nickname} onChange={e => setEditForm({ ...editForm, nickname: e.target.value })} placeholder="Tên hiển thị" />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase text-[var(--muted-fg)] mb-1 block">Phòng ban</label>
+                <select className="input" value={editForm.department_id || ''} onChange={e => setEditForm({ ...editForm, department_id: e.target.value || null })}>
+                  <option value="">-- Chưa chọn --</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
