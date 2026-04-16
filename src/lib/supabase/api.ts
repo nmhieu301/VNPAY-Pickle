@@ -415,7 +415,7 @@ export async function adminCreatePlayerDB(data: {
   email: string;
   full_name: string;
   nickname?: string;
-  elo_rating?: number;
+  tier?: number;
 }): Promise<Player | null> {
   const { data: row, error } = await supabase
     .from('players')

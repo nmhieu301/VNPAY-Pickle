@@ -45,7 +45,7 @@ interface AppStore {
   // Admin Actions
   adminUpdatePlayer: (playerId: string, updates: Partial<Player>) => Promise<boolean>;
   adminDeleteSession: (sessionId: string) => Promise<boolean>;
-  adminCreatePlayer: (data: { email: string; full_name: string; nickname?: string; elo_rating?: number }) => Promise<Player | null>;
+  adminCreatePlayer: (data: { email: string; full_name: string; nickname?: string; tier?: number }) => Promise<Player | null>;
   adminDeletePlayer: (playerId: string) => Promise<boolean>;
   adminCreateGroup: (data: { name: string; description?: string; owner_id: string; max_members?: number }) => Promise<Group | null>;
   adminUpdateGroup: (groupId: string, updates: Partial<Group>) => Promise<boolean>;

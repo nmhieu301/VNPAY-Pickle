@@ -134,7 +134,7 @@ export async function fetchSubscribers(scheduleId: string): Promise<RecurringSub
   const supabase = createClient();
   const { data } = await supabase
     .from('recurring_subscribers')
-    .select(`*, player:players(id, full_name, nickname, avatar_url, elo_rating, tier)`)
+    .select(`*, player:players(id, full_name, nickname, avatar_url, tier)`)
     .eq('schedule_id', scheduleId)
     .order('subscribed_at');
   return (data ?? []) as RecurringSubscriber[];

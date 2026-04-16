@@ -74,7 +74,7 @@ export async function fetchRsvpForOccurrence(
   const supabase = createClient();
   const { data, error } = await supabase
     .from('attendance')
-    .select(`*, player:players(id, full_name, nickname, avatar_url, elo_rating, tier)`)
+    .select(`*, player:players(id, full_name, nickname, avatar_url, tier)`)
     .eq('schedule_id', scheduleId)
     .eq('occurrence_date', occurrenceDate)
     .order('rsvp_at', { ascending: true });
@@ -257,7 +257,7 @@ export async function fetchGroupAttendanceStats(
   // Fetch all attendance for schedule in range
   const { data: records, error } = await supabase
     .from('attendance')
-    .select(`*, player:players(id, full_name, nickname, avatar_url, elo_rating, tier)`)
+    .select(`*, player:players(id, full_name, nickname, avatar_url, tier)`)
     .eq('schedule_id', scheduleId)
     .gte('occurrence_date', fromStr)
     .not('final_status', 'is', null);

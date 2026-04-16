@@ -9,17 +9,6 @@ import type {
   TournamentTeamExtended, Player, GuestTier,
 } from '@/types';
 
-// ─── Partial player type for list/search queries ───
-export interface PlayerSummary {
-  id: string;
-  full_name: string;
-  nickname: string | null;
-  email: string;
-  elo_rating: number | null;
-  tier: number;
-  department_id: string | null;
-}
-
 // ─── Committee Management ───
 
 export async function fetchCommittee(tournamentId: string): Promise<TournamentCommitteeMember[]> {
@@ -77,16 +66,16 @@ export async function searchPlayers(query: string, limit = 10): Promise<Player[]
     .limit(limit)
     .order('full_name');
   if (error) { console.error('searchPlayers:', error); return []; }
-  return data as unknown as Player[];
+  return (data ?? []) as unknown as Player[];
 }
 
-export async function fetchAllPlayers(): Promise<PlayerSummary[]> {
+export async function fetchAllPlayers(): Promise<Player[]> {
   const supabase = createClient();
   const { data } = await supabase
     .from('players')
-    .select('id, full_name, nickname, email, elo_rating, tier, department_id')
+    .select('*')
     .order('full_name');
-  return (data ?? []) as PlayerSummary[];
+  return (data ?? []) as unknown as Player[];
 }
 
 // ─── Manual Player Registration ───
@@ -99,21 +88,21 @@ export async function addPlayerToEvent(
 ): Promise<TournamentTeamExtended | null> {
   const supabase = createClient();
 
-  // Calculate avg elo
+  // Calculate avg tier
   const { data: p1 } = await supabase
     .from('players')
-    .select('elo_rating')
+    .select('tier')
     .eq('id', player1Id)
     .single();
 
-  let avgElo = (p1 as { elo_rating?: number } | null)?.elo_rating ?? 1000;
+  let avgElo = p1?.tier ?? 0;
   if (player2Id) {
     const { data: p2 } = await supabase
       .from('players')
-      .select('elo_rating')
+      .select('tier')
       .eq('id', player2Id)
       .single();
-    avgElo = (((p1 as { elo_rating?: number } | null)?.elo_rating ?? 1000) + ((p2 as { elo_rating?: number } | null)?.elo_rating ?? 1000)) / 2;
+    avgElo = ((p1?.tier ?? 0) + (p2?.tier ?? 0)) / 2;
   }
 
   const { data, error } = await supabase
