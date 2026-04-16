@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { AuthChangeEvent } from '@supabase/supabase-js';
 import { Player, Session, Department, Venue, Notification, MatchingResult, Group } from '@/types';
 import { getClient } from '@/lib/supabase/client';
 import {
@@ -109,7 +110,7 @@ export const useAppStore = create<AppStore>()(
         const supabase = getClient();
         let loginHandled = false; // Prevent duplicate loginWithEmail calls
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (_event, session) => {
+          async (_event: AuthChangeEvent, session) => {
             if (session?.user?.email) {
               // INITIAL_SESSION fires first from onAuthStateChange — no need for getSession()
               if (!loginHandled) {
