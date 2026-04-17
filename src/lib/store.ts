@@ -289,55 +289,63 @@ export const useAppStore = create<AppStore>()(
       isInitialized: false,
       initError: null,
 
-      // ─── Initialize: Fetch all data from Supabase ───
+      // ─── Initialize: Fetch all data from Supabase (auto-retry x3) ───
       initializeData: async () => {
         if (get().isLoading) return;
         set({ isLoading: true, initError: null });
 
-        try {
-          const TIMEOUT_MS = 15_000;
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Kết nối tới server quá lâu. Vui lòng thử lại.')), TIMEOUT_MS)
-          );
+        const MAX_RETRIES = 3;
+        const TIMEOUT_MS = 10_000; // 10s per attempt
 
-          const [players, departments, venues, sessions, sessionPlayersMap, checkedInMap] =
-            await Promise.race([
-              Promise.all([
-                fetchPlayers(),
-                fetchDepartments(),
-                fetchVenues(),
-                fetchSessions(),
-                fetchAllSessionPlayersMap(),
-                fetchAllCheckedInMap(),
-              ]),
-              timeoutPromise,
-            ]);
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error(`Timeout lần ${attempt}`)), TIMEOUT_MS)
+            );
 
-          // Compute player_count per session
-          const sessionsWithCount = sessions.map(s => ({
-            ...s,
-            player_count: (sessionPlayersMap[s.id] || []).length,
-          }));
+            const [players, departments, venues, sessions, sessionPlayersMap, checkedInMap] =
+              await Promise.race([
+                Promise.all([
+                  fetchPlayers(),
+                  fetchDepartments(),
+                  fetchVenues(),
+                  fetchSessions(),
+                  fetchAllSessionPlayersMap(),
+                  fetchAllCheckedInMap(),
+                ]),
+                timeoutPromise,
+              ]);
 
-          set({
-            players,
-            departments,
-            venues,
-            sessions: sessionsWithCount,
-            sessionPlayers: sessionPlayersMap,
-            checkedInPlayers: checkedInMap,
-            // Rebuild O(1) lookup Maps
-            playerMap: new Map(players.map(p => [p.id, p])),
-            venueMap: new Map(venues.map(v => [v.id, v])),
-            departmentMap: new Map(departments.map(d => [d.id, d])),
-            sessionMap: new Map(sessionsWithCount.map(s => [s.id, s])),
-            isInitialized: true,
-            isLoading: false,
-          });
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Không thể tải dữ liệu';
-          console.error('Failed to initialize data:', error);
-          set({ isLoading: false, initError: msg });
+            const sessionsWithCount = sessions.map(s => ({
+              ...s,
+              player_count: (sessionPlayersMap[s.id] || []).length,
+            }));
+
+            set({
+              players,
+              departments,
+              venues,
+              sessions: sessionsWithCount,
+              sessionPlayers: sessionPlayersMap,
+              checkedInPlayers: checkedInMap,
+              playerMap: new Map(players.map(p => [p.id, p])),
+              venueMap: new Map(venues.map(v => [v.id, v])),
+              departmentMap: new Map(departments.map(d => [d.id, d])),
+              sessionMap: new Map(sessionsWithCount.map(s => [s.id, s])),
+              isInitialized: true,
+              isLoading: false,
+            });
+            return; // success — exit loop
+          } catch (err) {
+            console.warn(`initializeData attempt ${attempt}/${MAX_RETRIES} failed:`, err);
+            if (attempt < MAX_RETRIES) {
+              // Wait before retrying: 2s, 4s
+              await new Promise(r => setTimeout(r, attempt * 2000));
+            } else {
+              console.error('initializeData: all retries exhausted');
+              set({ isLoading: false, initError: 'Không thể kết nối tới server. Vui lòng kiểm tra mạng và thử lại.' });
+            }
+          }
         }
       },
 

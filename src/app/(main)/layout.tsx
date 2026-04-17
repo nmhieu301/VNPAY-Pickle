@@ -75,14 +75,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // ── Error splash — timeout or network failure ──
+  // ── Error splash — all retries exhausted ──
   if (isAuthenticated && !isInitialized && initError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-5 px-6 text-center">
         <img src="/logo-128-v2.png" alt="VNPAY Pickle" className="w-20 h-20 object-contain opacity-60" />
         <div>
-          <p className="font-semibold text-[var(--fg)] mb-1">Không thể tải dữ liệu</p>
-          <p className="text-sm text-[var(--muted-fg)]">{initError}</p>
+          <p className="font-semibold text-[var(--fg)] mb-1">⚠️ Không thể kết nối</p>
+          <p className="text-sm text-[var(--muted-fg)] max-w-xs">{initError}</p>
         </div>
         <button
           onClick={() => initializeData()}
@@ -95,9 +95,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // ── Loading splash (first‑ever load or not authenticated) ──
+  // ── Loading splash — retrying in background ──
   const text = isAuthenticated && !isInitialized
-    ? 'Đang tải dữ liệu...'
+    ? 'Đang kết nối...'
     : 'Đang xác thực...';
 
   return (
