@@ -99,7 +99,7 @@ export default function RankingsPage() {
           {/* Leaderboard */}
           <div className="card overflow-hidden">
             {/* Header */}
-            <div className="hidden md:grid grid-cols-[3rem_1fr_8rem_6rem_4rem_5rem] gap-2 px-4 py-2 bg-[var(--muted)] text-xs font-semibold text-[var(--muted-fg)] uppercase">
+            <div className="hidden md:grid grid-cols-[3rem_minmax(0,2fr)_minmax(0,1fr)_7rem_4rem_4rem] gap-2 px-4 py-2 bg-[var(--muted)] text-xs font-semibold text-[var(--muted-fg)] uppercase">
               <span>#</span>
               <span>Player</span>
               <span>Phòng ban</span>
@@ -120,7 +120,7 @@ export default function RankingsPage() {
                 return (
                   <div
                     key={player.id}
-                    className="grid grid-cols-[3rem_1fr_auto] md:grid-cols-[3rem_1fr_8rem_6rem_4rem_5rem] gap-2 px-4 py-3 items-center hover:bg-[var(--muted)] transition-colors"
+                    className="grid grid-cols-[3rem_1fr_auto] md:grid-cols-[3rem_minmax(0,2fr)_minmax(0,1fr)_7rem_4rem_4rem] gap-2 px-4 py-3 items-center hover:bg-[var(--muted)] transition-colors"
                   >
                     {/* Rank */}
                     <span className={`text-center font-bold font-mono ${
@@ -139,7 +139,7 @@ export default function RankingsPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{player.nickname || player.full_name}</p>
-                        <p className="text-xs text-[var(--muted-fg)] truncate md:hidden">{dept?.name || ''}</p>
+                        <p className="text-xs text-[var(--muted-fg)] truncate md:hidden">{dept?.code || dept?.name || ''}</p>
                       </div>
                     </div>
 
@@ -148,8 +148,12 @@ export default function RankingsPage() {
                       <TierBadge tier={player.tier} size="sm" />
                     </div>
 
-                    {/* Desktop columns */}
-                    <span className="text-sm text-[var(--muted-fg)] hidden md:block truncate">{dept?.name || '-'}</span>
+                    {/* Desktop: Phòng ban — hiển thị code (short_name), tooltip tên đầy đủ */}
+                    <div className="hidden md:flex flex-col min-w-0 justify-center" title={dept?.name}>
+                      <span className="text-xs font-semibold text-[var(--fg)] truncate">{dept?.code || '-'}</span>
+                      {dept && <span className="text-xs text-[var(--muted-fg)] truncate">{dept.name}</span>}
+                    </div>
+
                     <span className="text-center hidden md:flex justify-center"><TierBadge tier={player.tier} size="sm" showSublabel /></span>
                     <span className="text-sm text-center hidden md:block">{player.total_matches}</span>
                     <span className="text-sm text-center hidden md:block font-mono" style={{ color: winRate >= 60 ? '#22C55E' : winRate >= 40 ? 'inherit' : '#EF4444' }}>
