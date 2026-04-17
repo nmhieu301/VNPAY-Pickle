@@ -295,14 +295,22 @@ export const useAppStore = create<AppStore>()(
         set({ isLoading: true, initError: null });
 
         try {
+          const TIMEOUT_MS = 15_000;
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Kết nối tới server quá lâu. Vui lòng thử lại.')), TIMEOUT_MS)
+          );
+
           const [players, departments, venues, sessions, sessionPlayersMap, checkedInMap] =
-            await Promise.all([
-              fetchPlayers(),
-              fetchDepartments(),
-              fetchVenues(),
-              fetchSessions(),
-              fetchAllSessionPlayersMap(),
-              fetchAllCheckedInMap(),
+            await Promise.race([
+              Promise.all([
+                fetchPlayers(),
+                fetchDepartments(),
+                fetchVenues(),
+                fetchSessions(),
+                fetchAllSessionPlayersMap(),
+                fetchAllCheckedInMap(),
+              ]),
+              timeoutPromise,
             ]);
 
           // Compute player_count per session

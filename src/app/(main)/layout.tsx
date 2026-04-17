@@ -6,12 +6,14 @@ import { useAppStore } from '@/lib/store';
 import { Header } from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { RefreshCw } from 'lucide-react';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const isAuthenticated = useAppStore(s => s.isAuthenticated);
   const isInitialized = useAppStore(s => s.isInitialized);
   const isLoading = useAppStore(s => s.isLoading);
+  const initError = useAppStore(s => s.initError);
   const initializeData = useAppStore(s => s.initializeData);
   const initAuth = useAppStore(s => s.initAuth);
   const authInitialized = useRef(false);
@@ -37,8 +39,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }, [isAuthenticated]);
 
   // Background refresh when authenticated but already showing cached data
+  // isLoading + initError in deps: re-run when fetch completes/fails so we can retry
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    if (isAuthenticated && !isLoading && !initError) {
       if (!isInitialized) {
         // First load — need to fetch
         initializeData();
@@ -49,7 +52,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, isInitialized]);
+  }, [isAuthenticated, isInitialized, isLoading, initError]);
 
   // ⚡ If we have cached data — show UI immediately, no splash screen
   if (isAuthenticated && isInitialized) {
@@ -69,6 +72,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         </footer>
         <MobileNav />
       </>
+    );
+  }
+
+  // ── Error splash — timeout or network failure ──
+  if (isAuthenticated && !isInitialized && initError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-5 px-6 text-center">
+        <img src="/logo-128-v2.png" alt="VNPAY Pickle" className="w-20 h-20 object-contain opacity-60" />
+        <div>
+          <p className="font-semibold text-[var(--fg)] mb-1">Không thể tải dữ liệu</p>
+          <p className="text-sm text-[var(--muted-fg)]">{initError}</p>
+        </div>
+        <button
+          onClick={() => initializeData()}
+          className="btn-primary flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Thử lại
+        </button>
+      </div>
     );
   }
 
